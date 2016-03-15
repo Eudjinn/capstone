@@ -37,12 +37,16 @@ library(ggplot2)
 ##     annotate
 ```
 
+```r
+# wordcloud/RWeka does not work with parallel processing when NGramTokenizer is used.
+options(mc.cores=1)
+```
+
 ### Loading data
 
 ```r
 # this is needed for tokenizer in DocumentTermMatrix to work. For some reason does not with parallel processing.
 # Found solution here: http://stackoverflow.com/questions/17703553/bigrams-instead-of-single-words-in-termdocument-matrix-using-r-and-rweka
-options(mc.cores=1)
 
 ds <- DirSource(directory = "final/en_US/")
 docs <- Corpus(ds, readerControl = list(reader = readPlain, language = "en", load = TRUE))
@@ -103,7 +107,7 @@ docs.sample <- tm_map(docs.sample, PlainTextDocument)
 # Singles
 dtm.sample <- DocumentTermMatrix(docs.sample)
 # remove sparse terms
-dtm.sample <- removeSparseTerms(dtm.sample, 0.1)
+dtms.sample <- removeSparseTerms(dtm.sample, 0.1)
 
 # Doubles
 bigramTokenizer <- function(x) NGramTokenizer(x, 
@@ -112,7 +116,7 @@ bigramTokenizer <- function(x) NGramTokenizer(x,
 dtm.sample.bigram <- DocumentTermMatrix(docs.sample, control = list(tokenize = bigramTokenizer))
 
 # remove sparse terms
-dtm.sample.bigram <- removeSparseTerms(dtm.sample.bigram, 0.1)
+dtms.sample.bigram <- removeSparseTerms(dtm.sample.bigram, 0.1)
 
 # Triples
 trigramTokenizer <- function(x) NGramTokenizer(x, 
@@ -121,7 +125,7 @@ trigramTokenizer <- function(x) NGramTokenizer(x,
 dtm.sample.trigram <- DocumentTermMatrix(docs.sample, control = list(tokenize = trigramTokenizer))
 
 # remove sparse terms
-dtm.sample.trigram <- removeSparseTerms(dtm.sample.trigram, 0.1)
+dtms.sample.trigram <- removeSparseTerms(dtm.sample.trigram, 0.1)
 ```
 
 ## Exploratory analysis
@@ -132,10 +136,10 @@ dtm.sample.trigram <- removeSparseTerms(dtm.sample.trigram, 0.1)
 ```r
 ## Single words
 # create matrix
-dtm.sample.m <- as.matrix(dtm.sample)
+dtms.sample.m <- as.matrix(dtms.sample)
 
 # calculate frequency
-frequency1 <- colSums(dtm.sample.m)
+frequency1 <- colSums(dtms.sample.m)
 
 # histogram of log of word frequencies
 # qplot(log(frequency), geom = "histogram", binwidth = 0.5)
@@ -178,10 +182,10 @@ ggplot(data = frequency1.df[1:20, ],
 ```r
 ## Bigrams
 
-dtm.sample.bigram.m <- as.matrix(dtm.sample.bigram)
+dtms.sample.bigram.m <- as.matrix(dtms.sample.bigram)
 
 # calculate frequency
-frequency2 <- colSums(dtm.sample.bigram.m)
+frequency2 <- colSums(dtms.sample.bigram.m)
 
 # sort by most frequently used words
 frequency2 <- sort(frequency2, decreasing = TRUE)
@@ -219,10 +223,10 @@ ggplot(data = frequency2.df[1:20, ],
 ```r
 ## Trigrams
 
-dtm.sample.trigram.m <- as.matrix(dtm.sample.trigram)
+dtms.sample.trigram.m <- as.matrix(dtms.sample.trigram)
 
 # calculate frequency
-frequency3 <- colSums(dtm.sample.trigram.m)
+frequency3 <- colSums(dtms.sample.trigram.m)
 
 # sort by most frequently used words
 frequency3 <- sort(frequency3, decreasing = TRUE)
@@ -257,7 +261,42 @@ ggplot(data = frequency3.df[1:20, ],
 ![](capstone_ms_files/figure-html/diplayFreq3-2.png)
 
 3. How many unique words do you need in a frequency sorted dictionary to cover 50% of all word instances in the language? 90%?
+
+
+```r
+# using dtm with sparse terms
+dtm.sample.m <- as.matrix(dtm.sample)
+
+# calculate frequency
+frequency <- colSums(dtm.sample.m)
+
+# sort by most frequently used words
+frequency <- sort(frequency, decreasing = TRUE)
+
+words.total <- sum(frequency)
+words.agg <- 0
+words.count <- 1
+
+while(words.agg < 0.5 * words.total) {
+    words.agg <- words.agg + frequency[words.count]
+    words.count <- words.count + 1
+}
+
+words.count50 <- words.count
+
+while(words.agg < 0.9 * words.total) {
+    words.agg <- words.agg + frequency[words.count]
+    words.count <- words.count + 1
+}
+
+words.count90 <- words.count
+```
+
+Number of frequent words covering half of the language: 323
+Number of frequent words covering 90% of the language: 7087
+
 4. How do you evaluate how many of the words come from foreign languages?
+
 5. Can you think of a way to increase the coverage -- identifying words that may not be in the corpora or using a smaller number of words in the dictionary to cover the same number of phrases?
 
 ## Appendix
