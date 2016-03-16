@@ -2,69 +2,14 @@
 Evgeniy Zabrodskiy  
 8 March 2016  
 
-## Synopsis
+# Synopsis
 The goal of this analysis is to understand the distribution and relationship between the words, tokens, and phrases in the text in order to build a predictive model.
 The distributions of frequencies of words, word pairs and word triplets are analised and shown in form of word clouds and barplots.
 
 ## Initialization
 
 
-```r
-library(tm)
-```
-
-```
-## Loading required package: NLP
-```
-
-```r
-library(RWeka)
-library(wordcloud)
-```
-
-```
-## Loading required package: RColorBrewer
-```
-
-```r
-library(ggplot2)
-```
-
-```
-## 
-## Attaching package: 'ggplot2'
-```
-
-```
-## The following object is masked from 'package:NLP':
-## 
-##     annotate
-```
-
-```r
-library(grid)
-library(gridExtra)
-```
-
-```
-## Warning: package 'gridExtra' was built under R version 3.2.4
-```
-
-```r
-# wordcloud/RWeka does not work with parallel processing when NGramTokenizer is used.
-options(mc.cores=1)
-```
-
-### Loading data
-
-```r
-# this is needed for tokenizer in DocumentTermMatrix to work. For some reason does not with parallel processing.
-# Found solution here: http://stackoverflow.com/questions/17703553/bigrams-instead-of-single-words-in-termdocument-matrix-using-r-and-rweka
-
-ds <- DirSource(directory = "final/en_US/")
-docs <- Corpus(ds, readerControl = list(reader = readPlain, language = "en", load = TRUE))
-summary(docs)
-```
+## Loading data
 
 ```
 ##                   Length Class             Mode
@@ -73,280 +18,84 @@ summary(docs)
 ## en_US.twitter.txt 2      PlainTextDocument list
 ```
 
-### Sampling and cleaning data
+Here are the lengths of files in number of rows:
 
-```r
-sample.size <- 10000
-# copy original doc for processing (don't know how to make it more efficient yet)
-docs.sample <- docs
-# select random sample of sample.size from the original
-# iterate through documents in the corpus
-for (i in 1:length(docs)) {
-    # get length of each document (number of lines)
-    l <- length(docs[[i]]$content)
-    # get random sample of lines in the document and replace the original doc in the corpus with the smaller sample.
-    docs.sample[[i]]$content <- docs[[i]]$content[sample(1:l, as.integer(sample.size))]
-}
+```
+##            FileName NumberOfRows
+## 1   en_US.blogs.txt       899288
+## 2    en_US.news.txt      1010242
+## 3 en_US.twitter.txt      2360148
 ```
 
+Since the files are pretty big (more than 4 million rows in total), words count would be computationally expensive, expecially taking into account that the documents should be cleaned first. For the text prediction algorithms we'll use smaller sample size which will be described below.  
 
-```r
-# remove punctuation
-docs.sample <- tm_map(docs.sample, removePunctuation)   
-
-# remove numbers
-docs.sample <- tm_map(docs.sample, removeNumbers)
-
-# remove some special characters
-for(j in seq(docs.sample)) {
-    docs.sample[[j]]$content <- gsub("/", " ", docs.sample[[j]]$content)   
-    docs.sample[[j]]$content <- gsub("@", " ", docs.sample[[j]]$content)   
-    docs.sample[[j]]$content <- gsub("\\|", " ", docs.sample[[j]]$content)
-}   
-
-# remove stopwords
-# docs.sample <- tm_map(docs.sample, removeWords, stopwords("english"))
-
-# to lowercase
-docs.sample <- tm_map(docs.sample, tolower)  
-
-# remove unnecessary whitespaces
-docs.sample <- tm_map(docs.sample, stripWhitespace)
-
-# finalize preprocessing
-docs.sample <- tm_map(docs.sample, PlainTextDocument)
-```
+## Sampling and cleaning data
 
 
-```r
-##  create document term matrix for all documents
-# Singles
-dtm.sample.unigram <- DocumentTermMatrix(docs.sample)
 
-# remove sparse terms
-dtms.sample.unigram <- removeSparseTerms(dtm.sample.unigram, 0.1)
 
-# Doubles
-bigramTokenizer <- function(x) NGramTokenizer(x, 
-                                Weka_control(min = 2, max = 2))
 
-dtm.sample.bigram <- DocumentTermMatrix(docs.sample, control = list(tokenize = bigramTokenizer))
-
-# remove sparse terms
-dtms.sample.bigram <- removeSparseTerms(dtm.sample.bigram, 0.1)
-
-# Triples
-trigramTokenizer <- function(x) NGramTokenizer(x, 
-                                Weka_control(min = 3, max = 3))
-
-dtm.sample.trigram <- DocumentTermMatrix(docs.sample, control = list(tokenize = trigramTokenizer))
-
-# remove sparse terms
-dtms.sample.trigram <- removeSparseTerms(dtm.sample.trigram, 0.1)
-```
 
 ## Exploratory analysis
 
-1. Some words are more frequent than others - what are the distributions of word frequencies?  
+### Basic information about the data
 
 
-```r
-## Single words
-# create matrix
-dtms.sample.unigram.m <- as.matrix(dtms.sample.unigram)
-
-# sort frequencies of terms in separate documents
-dtms.sample.unigram.df <- data.frame(Term = factor(), Freq = integer(), Doc = factor())
-for(i in 1:nrow(dtms.sample.unigram.m)) {
-    doc <- data.frame(Term = dimnames(dtms.sample.unigram.m)$Terms, 
-                      Freq = dtms.sample.unigram.m[i, ], 
-                      Doc = as.factor(i))
-    dtms.sample.unigram.df <- rbind(dtms.sample.unigram.df, 
-                                    doc[order(doc$Freq, decreasing = TRUE), ])
-}
-
-dtms.sample.unigram.df <- dtms.sample.unigram.df[order(dtms.sample.unigram.df$Freq, decreasing = TRUE), ]
-dtms.sample.unigram.df.top <- dtms.sample.unigram.df[1:30, ]
-# drop unused levels and reorder according to ordered frequencies
-dtms.sample.unigram.df.top$Term <- factor(dtms.sample.unigram.df.top$Term, 
-                                          levels = unique(as.character(dtms.sample.unigram.df.top$Term)))
-
-# graph with term frequencies per document
-g.perdoc.bar <- ggplot(data = dtms.sample.unigram.df.top, 
-                       aes(Term, Freq, fill = Doc)) + 
-    geom_bar(stat = "identity", 
-             position = "dodge") + 
-    labs(x = "Terms",
-         y = "Frequency",
-         title = "Most frequent terms per documents") +
-    theme(axis.text.x=element_text(angle = 60, hjust = 1))
-
-# calculate aggregated frequency
-frequency1 <- colSums(dtms.sample.unigram.m)
-
-# sort by most frequently used words
-frequency1 <- sort(frequency1, decreasing = TRUE)
-words1 <- names(frequency1)
-
-# dataframe for more convenient use in ggplot
-frequency1.df <- data.frame(w = factor(words1, 
-                                      levels = words1), 
-                            f = frequency1)
-
-# graph with most frequent terms aggregated for all document
-g.agg.bar <- ggplot(data = frequency1.df[1:20, ], 
-                    aes(w, f, fill = f)) +
-    geom_bar(stat = "identity") +
-    labs(x = "Terms",
-         y = "Frequency",
-         title = "Most frequent terms among all documents") +
-    theme(axis.text.x=element_text(angle = 60, hjust = 1))
-
-graphs <- arrangeGrob(g.perdoc.bar, g.agg.bar, nrow = 2)
-grid.draw(graphs)
 ```
+## <<DocumentTermMatrix (documents: 3, terms: 51682)>>
+## Non-/sparse entries: 76681/78365
+## Sparsity           : 51%
+## Maximal term length: 69
+## Weighting          : term frequency (tf)
+```
+
+From the output we can see some useful information, including total number of terms.  
+Here are the lengths of samples, number of words instances, number of terms (unique words) per each document:  
+
+```
+##            FileName NumberOfRows NumberOfWords NumberOfTermsPerDocument
+## 1   en_US.blogs.txt        10000        319063                    31141
+## 2    en_US.news.txt        10000        270902                    30419
+## 3 en_US.twitter.txt        10000         95707                    15121
+```
+
+### 1. Some words are more frequent than others - what are the distributions of word frequencies?  
+
+
+
+Below is the barplots showing unigram terms frequencies per each document (Blogs, News and Twitter) separately and aggregated for all three documents (lower-right graph).  
 
 ![](capstone_ms_files/figure-html/displayFreq1-1.png)
 
-```r
-# draw wordcloud
-g.agg.wc <- wordcloud(words = words1[1:100], 
-          freq = frequency1[1:100], 
-          random.order = FALSE, 
-          scale = c(8, 1),
-          min.freq = 1,
-          rot.per = 0.35, 
-          use.r.layout = FALSE,
-          colors = brewer.pal(8, "Dark2"))
-```
+For quick perception of the terms frequencies one can have a look at words cloud:  
 
-![](capstone_ms_files/figure-html/displayFreq1-2.png)
+![](capstone_ms_files/figure-html/displayWC1-1.png)
 
-2. What are the frequencies of 2-grams and 3-grams in the dataset?  
+### 2. What are the frequencies of 2-grams and 3-grams in the dataset?  
+Similar to unigram terms, here are the barplots for bigrams:  
+
+![](capstone_ms_files/figure-html/displayFreq2-1.png)
 
 
-```r
-## Bigrams
 
-dtms.sample.bigram.m <- as.matrix(dtms.sample.bigram)
+Same way of presentation for trigram term frequencies. The difference of most frequent terms between different documents (types of sources) is significant especially copared to unigram frequencies above.  
 
-# calculate frequency
-frequency2 <- colSums(dtms.sample.bigram.m)
-
-# sort by most frequently used words
-frequency2 <- sort(frequency2, decreasing = TRUE)
-words2 <- names(frequency2)
-
-wordcloud(words = words2[1:100], 
-          freq = frequency2[1:100], 
-          random.order = FALSE, 
-          scale = c(5, 0.5),
-          min.freq = 1,
-          rot.per = 0.35, 
-          use.r.layout = FALSE, 
-          colors = brewer.pal(8, "Dark2"))
-```
-
-![](capstone_ms_files/figure-html/diplayFreq2-1.png)
-
-```r
-frequency2.df <- data.frame(w = factor(words2, 
-                                      levels = words2), 
-                           f = frequency2)
-
-ggplot(data = frequency2.df[1:20, ], 
-       aes(w, f, fill = f),
-       xlab = "Terms",
-       ylab = "Frequency",
-       main = "Most frequent terms") + 
-    geom_bar(stat = "identity") + 
-    theme(axis.text.x=element_text(angle = 60, hjust = 1))
-```
-
-![](capstone_ms_files/figure-html/diplayFreq2-2.png)
+![](capstone_ms_files/figure-html/displayFreq3-1.png)
 
 
-```r
-## Trigrams
 
-dtms.sample.trigram.m <- as.matrix(dtms.sample.trigram)
+### 3. How many unique words do you need in a frequency sorted dictionary to cover 50% of all word instances in the language? 90%?  
 
-# calculate frequency
-frequency3 <- colSums(dtms.sample.trigram.m)
-
-# sort by most frequently used words
-frequency3 <- sort(frequency3, decreasing = TRUE)
-words3 <- names(frequency3)
-
-wordcloud(words = words3[1:100], 
-          freq = frequency3[1:100], 
-          random.order = FALSE, 
-          scale = c(3, 0.2),
-          min.freq = 1,
-          rot.per = 0.35, 
-          use.r.layout = FALSE, 
-          colors = brewer.pal(8, "Dark2"))
-```
-
-![](capstone_ms_files/figure-html/diplayFreq3-1.png)
-
-```r
-frequency3.df <- data.frame(w = factor(words3, 
-                                      levels = words3), 
-                           f = frequency3)
-
-ggplot(data = frequency3.df[1:20, ], 
-       aes(w, f, fill = f),
-       xlab = "Terms",
-       ylab = "Frequency",
-       main = "Most frequent terms") + 
-    geom_bar(stat = "identity") + 
-    theme(axis.text.x=element_text(angle = 60, hjust = 1))
-```
-
-![](capstone_ms_files/figure-html/diplayFreq3-2.png)
-
-3. How many unique words do you need in a frequency sorted dictionary to cover 50% of all word instances in the language? 90%?  
-
-
-```r
-# using dtm with sparse terms
-dtm.sample.unigram.m <- as.matrix(dtm.sample.unigram)
-
-# calculate frequency
-frequency <- colSums(dtm.sample.unigram.m)
-
-# sort by most frequently used words
-frequency <- sort(frequency, decreasing = TRUE)
-
-words.total <- sum(frequency)
-words.agg <- 0
-words.count <- 1
-
-while(words.agg < 0.5 * words.total) {
-    words.agg <- words.agg + frequency[words.count]
-    words.count <- words.count + 1
-}
-
-words.count50 <- words.count
-
-while(words.agg < 0.9 * words.total) {
-    words.agg <- words.agg + frequency[words.count]
-    words.count <- words.count + 1
-}
-
-words.count90 <- words.count
-```
 
 Number of frequent words covering half of the language: **330**  
-Number of frequent words covering 90% of the language: **1.002\times 10^{4}**  
+Number of frequent words covering 90% of the language: **9960**  
 
-4. How do you evaluate how many of the words come from foreign languages?  
+### 4. How do you evaluate how many of the words come from foreign languages?  
 
 One of the ways to identify foreign words is by looking up for a word in a language dictionary. This approach is quite straighforward and has disadvantages such as incorrect classification of misspelled words.  
 Another possible way is using machine learning algorithms with language profiles. This approach is used in *langid* library.  
 
-5. Can you think of a way to increase the coverage -- identifying words that may not be in the corpora or using a smaller number of words in the dictionary to cover the same number of phrases?  
+### 5. Can you think of a way to increase the coverage -- identifying words that may not be in the corpora or using a smaller number of words in the dictionary to cover the same number of phrases?  
 
 One of the ways of identifying words that may not be in the corpora can be possible if there is an external dictionary with linguistic markers such as type of the word (noun, verb, adjective, adverb, etc.)  
 Using a smaller number of words in the dictionary to cover the same number of phrases can be done by stemming words and suggesting endings based on some algorithm.
