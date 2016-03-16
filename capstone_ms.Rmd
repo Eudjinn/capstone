@@ -35,16 +35,16 @@ summary(docs)
 
 ### Sampling and cleaning data
 ```{r getSample}
-delim <- 1000
+sample.size <- 10000
 # copy original doc for processing (don't know how to make it more efficient yet)
 docs.sample <- docs
-# select random sample of size/delim of the original
+# select random sample of sample.size from the original
 # iterate through documents in the corpus
 for (i in 1:length(docs)) {
     # get length of each document (number of lines)
     l <- length(docs[[i]]$content)
     # get random sample of lines in the document and replace the original doc in the corpus with the smaller sample.
-    docs.sample[[i]]$content <- docs[[i]]$content[sample(1:l, as.integer(l/delim))]
+    docs.sample[[i]]$content <- docs[[i]]$content[sample(1:l, as.integer(sample.size))]
 }
 ```
 
@@ -57,16 +57,16 @@ docs.sample <- tm_map(docs.sample, removeNumbers)
 
 # remove some special characters
 for(j in seq(docs.sample)) {
-    docs.sample[[j]] <- gsub("/", " ", docs.sample[[j]])   
-    docs.sample[[j]] <- gsub("@", " ", docs.sample[[j]])   
-    docs.sample[[j]] <- gsub("\\|", " ", docs.sample[[j]])
-    }   
+    docs.sample[[j]]$content <- gsub("/", " ", docs.sample[[j]]$content)   
+    docs.sample[[j]]$content <- gsub("@", " ", docs.sample[[j]]$content)   
+    docs.sample[[j]]$content <- gsub("\\|", " ", docs.sample[[j]]$content)
+}   
 
 # remove stopwords
 # docs.sample <- tm_map(docs.sample, removeWords, stopwords("english"))
 
 # to lowercase
-docs <- tm_map(docs.sample, tolower)  
+docs.sample <- tm_map(docs.sample, tolower)  
 
 # remove unnecessary whitespaces
 docs.sample <- tm_map(docs.sample, stripWhitespace)
@@ -76,11 +76,12 @@ docs.sample <- tm_map(docs.sample, PlainTextDocument)
 ```
 
 ```{r DocumentTermMatrix}
-##  create document term matrix
+##  create document term matrix for all documents
 # Singles
-dtm.sample <- DocumentTermMatrix(docs.sample)
+dtm.sample.unigram <- DocumentTermMatrix(docs.sample)
+
 # remove sparse terms
-dtms.sample <- removeSparseTerms(dtm.sample, 0.1)
+dtms.sample.unigram <- removeSparseTerms(dtm.sample.unigram, 0.1)
 
 # Doubles
 bigramTokenizer <- function(x) NGramTokenizer(x, 
@@ -109,10 +110,35 @@ dtms.sample.trigram <- removeSparseTerms(dtm.sample.trigram, 0.1)
 
 ## Single words
 # create matrix
-dtms.sample.m <- as.matrix(dtms.sample)
+dtms.sample.unigram.m <- as.matrix(dtms.sample.unigram)
 
-# calculate frequency
-frequency1 <- colSums(dtms.sample.m)
+# sort frequencies of terms in separate documents
+dtms.sample.unigram.df <- data.frame(Term = factor(), Freq = integer(), Doc = factor())
+for(i in 1:nrow(dtms.sample.unigram.m)) {
+    doc <- data.frame(Term = dimnames(dtms.sample.unigram.m)$Terms, 
+                      Freq = dtms.sample.unigram.m[i, ], 
+                      Doc = as.factor(i))
+    dtms.sample.unigram.df <- rbind(dtms.sample.unigram.df, 
+                                    doc[order(doc$Freq, decreasing = TRUE), ])
+}
+
+dtms.sample.unigram.df <- dtms.sample.unigram.df[order(dtms.sample.unigram.df$Freq, decreasing = TRUE), ]
+dtms.sample.unigram.df.top <- dtms.sample.unigram.df[1:30, ]
+# drop unused levels and reorder according to ordered frequencies
+dtms.sample.unigram.df.top$Term <- factor(dtms.sample.unigram.df.top$Term, 
+                                          levels = unique(as.character(dtms.sample.unigram.df.top$Term)))
+
+ggplot(data = dtms.sample.unigram.df.top, 
+       aes(Term, Freq, fill = Doc)) + 
+    geom_bar(stat = "identity", 
+             position = "dodge") + 
+    labs(x = "Terms",
+         y = "Frequency",
+         title = "Most frequent terms among per documents") +
+    theme(axis.text.x=element_text(angle = 60, hjust = 1))
+
+# calculate aggregated frequency
+frequency1 <- colSums(dtms.sample.unigram.m)
 
 # histogram of log of word frequencies
 # qplot(log(frequency), geom = "histogram", binwidth = 0.5)
@@ -220,10 +246,10 @@ ggplot(data = frequency3.df[1:20, ],
 
 ```{r}
 # using dtm with sparse terms
-dtm.sample.m <- as.matrix(dtm.sample)
+dtm.sample.unigram.m <- as.matrix(dtm.sample.unigram)
 
 # calculate frequency
-frequency <- colSums(dtm.sample.m)
+frequency <- colSums(dtm.sample.unigram.m)
 
 # sort by most frequently used words
 frequency <- sort(frequency, decreasing = TRUE)
@@ -260,69 +286,10 @@ Another possible way is using machine learning algorithms with language profiles
 One of the ways of identifying words that may not be in the corpora can be possible if there is an external dictionary with linguistic markers such as type of the word (noun, verb, adjective, adverb, etc.)  
 Using a smaller number of words in the dictionary to cover the same number of phrases can be done by stemming words and suggesting endings based on some algorithm.
 
-## Appendix
-
-```{r}
-#> order(dtms.sample$v, decreasing = TRUE)[1:10]
-# [1] 3192 3433 1605 4506 3597 4324 1112 4570  850 4608
-#> dtms.sample$v[order(dtms.sample$v, decreasing = TRUE)[1:10]]
-# [1] 261 257 175 157 134 125 124 123 108 107
-#> dtms.sample$i[order(dtms.sample$v, decreasing = TRUE)[1:10]]
-# [1] 2 2 1 3 2 3 1 3 1 3
-#> dtms.sample$j[order(dtms.sample$v, decreasing = TRUE)[1:10]]
-# [1] 1364 1605 1605  850 1769  668 1112  914  850  952
-#> dtms.sample$dimnames$Terms[dtms.sample$j[order(dtms.sample$v, decreasing = TRUE)[1:10]]]
-# [1] "said" "the"  "the"  "just" "will" "get"  "one"  "like" "just" "love"
-```
+## References
 
 https://rstudio-pubs-static.s3.amazonaws.com/31867_8236987cf0a8444e962ccd2aec46d9c3.html
 
 https://deltadna.com/blog/text-mining-in-r-for-term-frequency/
 
-```{r}
-#> dtms.df <- data.frame(i = dtms.sample$i, j = dtms.sample$j, v = ddttms.sample$v)
-#> qplot(data = dtms.df, as.factor(i), log(v), geom = c("boxplot", "jitter"), color = as.factor(i))
-
-#> # show barplot of top 10 words frequencies in the Corpus. Find correct way of plotting it with ggplot2.
-#> barplot(dtms.top10$v, col = as.factor(dtms.top10$i))
-```
-
-```{r}
-# remove punctuation
-# docs <- tm_map(docs, removePunctuation)   
-
-# remove some special characters
-# for(j in seq(docs)) {   
-#     docs[[j]] <- gsub("/", " ", docs[[j]])   
-#     docs[[j]] <- gsub("@", " ", docs[[j]])   
-#     docs[[j]] <- gsub("\\|", " ", docs[[j]])   
-#  }   
-
-# remove numbers
-# docs <- tm_map(docs, removeNumbers)
-
-# to lowercase
-# docs <- tm_map(docs, tolower)  
-
-# remove stopwords
-# For a list of the stopwords, see:   
-# length(stopwords("english"))   
-# stopwords("english")   
-# docs <- tm_map(docs, removeWords, stopwords("english"))
-
-# remove particular words
-# docs <- tm_map(docs, removeWords, c("department", "email"))   
-
-# remove word endings
-# library(SnowballC)   
-# docs <- tm_map(docs, stemDocument)   
-
-# strip unnecessary whitespaces
-# docs <- tm_map(docs, stripWhitespace)
-
-# finalize preprocessing
-# docs <- tm_map(docs, PlainTextDocument)  
-
-# Create document term matrix
-# dtm <- DocumentTermMatrix(docs)
-```
+## Appendix
