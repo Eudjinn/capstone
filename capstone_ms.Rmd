@@ -8,7 +8,8 @@ output:
 ---
 
 ## Synopsis
-
+The goal of this analysis is to understand the distribution and relationship between the words, tokens, and phrases in the text in order to build a predictive model.
+The distributions of frequencies of words, word pairs and word triplets are analised and shown in form of word clouds and barplots.
 
 ## Initialization
 
@@ -63,6 +64,9 @@ for(j in seq(docs.sample)) {
 
 # remove stopwords
 # docs.sample <- tm_map(docs.sample, removeWords, stopwords("english"))
+
+# to lowercase
+docs <- tm_map(docs.sample, tolower)  
 
 # remove unnecessary whitespaces
 docs.sample <- tm_map(docs.sample, stripWhitespace)

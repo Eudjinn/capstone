@@ -1,8 +1,12 @@
-# capstone
+# Text prediction - milestone assignment of the capstone project
 Evgeniy Zabrodskiy  
 8 March 2016  
 
-## Initialize
+## Synopsis
+The goal of this analysis is to understand the distribution and relationship between the words, tokens, and phrases in the text in order to build a predictive model.
+The distributions of frequencies of words, word pairs and word triplets are analised and shown in form of word clouds and barplots.
+
+## Initialization
 
 
 ```r
@@ -94,6 +98,9 @@ for(j in seq(docs.sample)) {
 # remove stopwords
 # docs.sample <- tm_map(docs.sample, removeWords, stopwords("english"))
 
+# to lowercase
+docs <- tm_map(docs.sample, tolower)  
+
 # remove unnecessary whitespaces
 docs.sample <- tm_map(docs.sample, stripWhitespace)
 
@@ -130,7 +137,7 @@ dtms.sample.trigram <- removeSparseTerms(dtm.sample.trigram, 0.1)
 
 ## Exploratory analysis
 
-1. Some words are more frequent than others - what are the distributions of word frequencies?
+1. Some words are more frequent than others - what are the distributions of word frequencies?  
 
 
 ```r
@@ -176,7 +183,7 @@ ggplot(data = frequency1.df[1:20, ],
 
 ![](capstone_ms_files/figure-html/displayFreq1-2.png)
 
-2. What are the frequencies of 2-grams and 3-grams in the dataset?
+2. What are the frequencies of 2-grams and 3-grams in the dataset?  
 
 
 ```r
@@ -260,7 +267,7 @@ ggplot(data = frequency3.df[1:20, ],
 
 ![](capstone_ms_files/figure-html/diplayFreq3-2.png)
 
-3. How many unique words do you need in a frequency sorted dictionary to cover 50% of all word instances in the language? 90%?
+3. How many unique words do you need in a frequency sorted dictionary to cover 50% of all word instances in the language? 90%?  
 
 
 ```r
@@ -292,12 +299,18 @@ while(words.agg < 0.9 * words.total) {
 words.count90 <- words.count
 ```
 
-Number of frequent words covering half of the language: 323
-Number of frequent words covering 90% of the language: 7087
+Number of frequent words covering half of the language: **313**  
+Number of frequent words covering 90% of the language: **6932**  
 
-4. How do you evaluate how many of the words come from foreign languages?
+4. How do you evaluate how many of the words come from foreign languages?  
 
-5. Can you think of a way to increase the coverage -- identifying words that may not be in the corpora or using a smaller number of words in the dictionary to cover the same number of phrases?
+One of the ways to identify foreign words is by looking up for a word in a language dictionary. This approach is quite straighforward and has disadvantages such as incorrect classification of misspelled words.  
+Another possible way is using machine learning algorithms with language profiles. This approach is used in *langid* library.  
+
+5. Can you think of a way to increase the coverage -- identifying words that may not be in the corpora or using a smaller number of words in the dictionary to cover the same number of phrases?  
+
+One of the ways of identifying words that may not be in the corpora can be possible if there is an external dictionary with linguistic markers such as type of the word (noun, verb, adjective, adverb, etc.)  
+Using a smaller number of words in the dictionary to cover the same number of phrases can be done by stemming words and suggesting endings based on some algorithm.
 
 ## Appendix
 
