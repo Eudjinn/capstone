@@ -42,6 +42,15 @@ library(ggplot2)
 ```
 
 ```r
+library(grid)
+library(gridExtra)
+```
+
+```
+## Warning: package 'gridExtra' was built under R version 3.2.4
+```
+
+```r
 # wordcloud/RWeka does not work with parallel processing when NGramTokenizer is used.
 options(mc.cores=1)
 ```
@@ -162,30 +171,46 @@ dtms.sample.unigram.df.top <- dtms.sample.unigram.df[1:30, ]
 dtms.sample.unigram.df.top$Term <- factor(dtms.sample.unigram.df.top$Term, 
                                           levels = unique(as.character(dtms.sample.unigram.df.top$Term)))
 
-ggplot(data = dtms.sample.unigram.df.top, 
-       aes(Term, Freq, fill = Doc)) + 
+# graph with term frequencies per document
+g.perdoc.bar <- ggplot(data = dtms.sample.unigram.df.top, 
+                       aes(Term, Freq, fill = Doc)) + 
     geom_bar(stat = "identity", 
              position = "dodge") + 
     labs(x = "Terms",
          y = "Frequency",
-         title = "Most frequent terms among per documents") +
+         title = "Most frequent terms per documents") +
     theme(axis.text.x=element_text(angle = 60, hjust = 1))
-```
 
-![](capstone_ms_files/figure-html/displayFreq1-1.png)
-
-```r
 # calculate aggregated frequency
 frequency1 <- colSums(dtms.sample.unigram.m)
-
-# histogram of log of word frequencies
-# qplot(log(frequency), geom = "histogram", binwidth = 0.5)
 
 # sort by most frequently used words
 frequency1 <- sort(frequency1, decreasing = TRUE)
 words1 <- names(frequency1)
 
-wordcloud(words = words1[1:100], 
+# dataframe for more convenient use in ggplot
+frequency1.df <- data.frame(w = factor(words1, 
+                                      levels = words1), 
+                            f = frequency1)
+
+# graph with most frequent terms aggregated for all document
+g.agg.bar <- ggplot(data = frequency1.df[1:20, ], 
+                    aes(w, f, fill = f)) +
+    geom_bar(stat = "identity") +
+    labs(x = "Terms",
+         y = "Frequency",
+         title = "Most frequent terms among all documents") +
+    theme(axis.text.x=element_text(angle = 60, hjust = 1))
+
+graphs <- arrangeGrob(g.perdoc.bar, g.agg.bar, nrow = 2)
+grid.draw(graphs)
+```
+
+![](capstone_ms_files/figure-html/displayFreq1-1.png)
+
+```r
+# draw wordcloud
+g.agg.wc <- wordcloud(words = words1[1:100], 
           freq = frequency1[1:100], 
           random.order = FALSE, 
           scale = c(8, 1),
@@ -196,22 +221,6 @@ wordcloud(words = words1[1:100],
 ```
 
 ![](capstone_ms_files/figure-html/displayFreq1-2.png)
-
-```r
-frequency1.df <- data.frame(w = factor(words1, 
-                                      levels = words1), 
-                           f = frequency1)
-
-ggplot(data = frequency1.df[1:20, ], 
-       aes(w, f, fill = f),
-       xlab = "Terms",
-       ylab = "Frequency",
-       main = "Most frequent terms") + 
-    geom_bar(stat = "identity") + 
-    theme(axis.text.x=element_text(angle = 60, hjust = 1))
-```
-
-![](capstone_ms_files/figure-html/displayFreq1-3.png)
 
 2. What are the frequencies of 2-grams and 3-grams in the dataset?  
 
