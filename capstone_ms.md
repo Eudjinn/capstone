@@ -1,6 +1,6 @@
 # Text prediction - milestone assignment of the capstone project
 Evgeniy Zabrodskiy  
-8 March 2016  
+17 March 2016  
 
 # Synopsis
 The goal of this analysis is to understand the distribution and relationship between the words, tokens, and phrases in the text in order to build a predictive model.
@@ -112,5 +112,6 @@ One of the ways of identifying words that may not be in the corpora is by using 
 Using a smaller number of words in the dictionary to cover the same number of phrases can be possible by stemming words and suggesting endings based on some algorithm which takes into account grammar rules of the language.  
 
 ## References
-
-[Basic Text Mining in R](https://rstudio-pubs-static.s3.amazonaws.com/31867_8236987cf0a8444e962ccd2aec46d9c3.html)
+1. [Text Mining Infrastructure in R](https://www.jstatsoft.org/article/view/v025i05)
+2. [Basic Text Mining in R](https://rstudio-pubs-static.s3.amazonaws.com/31867_8236987cf0a8444e962ccd2aec46d9c3.html)
+3. [Natural Language Processing](https://www.coursera.org/course/nlp)
