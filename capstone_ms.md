@@ -6,64 +6,75 @@ Evgeniy Zabrodskiy
 The goal of this analysis is to understand the distribution and relationship between the words, tokens, and phrases in the text in order to build a predictive model.
 The distributions of frequencies of words, word pairs and word triplets are analised and shown in form of word clouds and barplots.
 
-## Initialization
 
 
 ## Loading data
 
-```
-##                   Length Class             Mode
-## en_US.blogs.txt   2      PlainTextDocument list
-## en_US.news.txt    2      PlainTextDocument list
-## en_US.twitter.txt 2      PlainTextDocument list
-```
 
-Here are the lengths of files in number of rows:
+Here are the loaded file names, their lenghts in number of rows and total number of words:
 
 ```
-##            FileName NumberOfRows
-## 1   en_US.blogs.txt       899288
-## 2    en_US.news.txt      1010242
-## 3 en_US.twitter.txt      2360148
+##            FileName NumberOfRows NumberOfWords
+## 1   en_US.blogs.txt       899288      37546246
+## 2    en_US.news.txt      1010242      34762395
+## 3 en_US.twitter.txt      2360148      30093369
 ```
-
-Since the files are pretty big (more than 4 million rows in total), words count would be computationally expensive, expecially taking into account that the documents should be cleaned first. For the text prediction algorithms we'll use smaller sample size which will be described below.  
 
 ## Sampling and cleaning data
+The files are quite big (more than 4 millions of rows in total) and building document term matrix using original files is computationally expensive and may take a lot of time. Besides, for the word prediction task we're interested in frequent unigrams, bigrams and trigrams which can be obtained from a smaller sample.  
 
 
 
+We randomly selected **10000** rows from each document and all further cleaning and transformations are done using the sample.  
+
+
+
+Cleaning procedures and transformations that were applied to the sample are:  
+- remove punctuation,  
+- remove numbers,  
+- convert to lowercase,  
+- remove unnecessary whitespaces.  
 
 
 
 ## Exploratory analysis
 
 ### Basic information about the data
+Once the data is clean, the document term matrix can be created. It contains the frequncies of terms in each document. The frequencies of terms can be converted to probabilities for prediction modelling at later stages of the project.  
+
+Here is the default output of the document term matrix created from the data sample:  
 
 
 ```
-## <<DocumentTermMatrix (documents: 3, terms: 51682)>>
-## Non-/sparse entries: 76681/78365
+## <<DocumentTermMatrix (documents: 3, terms: 51762)>>
+## Non-/sparse entries: 76844/78442
 ## Sparsity           : 51%
-## Maximal term length: 69
+## Maximal term length: 114
 ## Weighting          : term frequency (tf)
 ```
 
 From the output we can see some useful information, including total number of terms.  
 Here are the lengths of samples, number of words instances, number of terms (unique words) per each document:  
 
+
 ```
 ##            FileName NumberOfRows NumberOfWords NumberOfTermsPerDocument
-## 1   en_US.blogs.txt        10000        319063                    31141
-## 2    en_US.news.txt        10000        270902                    30419
-## 3 en_US.twitter.txt        10000         95707                    15121
+## 1   en_US.blogs.txt        10000        319034                    31004
+## 2    en_US.news.txt        10000        271125                    30469
+## 3 en_US.twitter.txt        10000         96899                    15371
 ```
 
 ### 1. Some words are more frequent than others - what are the distributions of word frequencies?  
 
 
 
-Below is the barplots showing unigram terms frequencies per each document (Blogs, News and Twitter) separately and aggregated for all three documents (lower-right graph).  
+Here is the histogram to understand the distribuition of word frequencies. Due to the distribution properties, it does not look good without transformations and in order to get a better looking histogram, the distribution is shown on the log scale.  
+It is important to mention that sparse terms have been removed at earlier stage of documents processing. Black line shows **log(median)** which is around **2.89** which corresponds to **median** = **18**.  
+This means that after removing sparse terms, half of all the words in sample documents occur less than or equal to 18 times.
+
+![](capstone_ms_files/figure-html/displayHist1-1.png)
+
+Below are the barplots showing unigram terms frequencies per each document (Blogs, News and Twitter) separately and aggregated for all three documents (lower-right graph).  
 
 ![](capstone_ms_files/figure-html/displayFreq1-1.png)
 
@@ -87,8 +98,8 @@ Same way of presentation for trigram term frequencies. The difference of most fr
 ### 3. How many unique words do you need in a frequency sorted dictionary to cover 50% of all word instances in the language? 90%?  
 
 
-Number of frequent words covering half of the language: **330**  
-Number of frequent words covering 90% of the language: **9960**  
+Number of frequent words covering half of the language: **331**  
+Number of frequent words covering 90% of the language: **10031**  
 
 ### 4. How do you evaluate how many of the words come from foreign languages?  
 
@@ -97,13 +108,9 @@ Another possible way is using machine learning algorithms with language profiles
 
 ### 5. Can you think of a way to increase the coverage -- identifying words that may not be in the corpora or using a smaller number of words in the dictionary to cover the same number of phrases?  
 
-One of the ways of identifying words that may not be in the corpora can be possible if there is an external dictionary with linguistic markers such as type of the word (noun, verb, adjective, adverb, etc.)  
-Using a smaller number of words in the dictionary to cover the same number of phrases can be done by stemming words and suggesting endings based on some algorithm.
+One of the ways of identifying words that may not be in the corpora is by using an algorithm which uses external dictionary with linguistic markers such as type of the word (noun, verb, adjective, adverb, etc.) together with some machine learning algorithms that can suggest the word.  
+Using a smaller number of words in the dictionary to cover the same number of phrases can be possible by stemming words and suggesting endings based on some algorithm which takes into account grammar rules of the language.  
 
 ## References
 
-https://rstudio-pubs-static.s3.amazonaws.com/31867_8236987cf0a8444e962ccd2aec46d9c3.html
-
-https://deltadna.com/blog/text-mining-in-r-for-term-frequency/
-
-## Appendix
+[Basic Text Mining in R](https://rstudio-pubs-static.s3.amazonaws.com/31867_8236987cf0a8444e962ccd2aec46d9c3.html)

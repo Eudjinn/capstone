@@ -11,7 +11,6 @@ output:
 The goal of this analysis is to understand the distribution and relationship between the words, tokens, and phrases in the text in order to build a predictive model.
 The distributions of frequencies of words, word pairs and word triplets are analised and shown in form of word clouds and barplots.
 
-## Initialization
 ```{r, echo = FALSE, results = "hide", warning = FALSE, message = FALSE}
 library(tm)
 library(RWeka)
@@ -19,6 +18,7 @@ library(wordcloud)
 library(ggplot2)
 library(grid)
 library(gridExtra)
+library(stringi)
 
 # wordcloud/RWeka does not work with parallel processing when NGramTokenizer is used.
 options(mc.cores=1)
@@ -31,30 +31,31 @@ options(mc.cores=1)
 
 ds <- DirSource(directory = "final/en_US/")
 docs <- Corpus(ds, readerControl = list(reader = readPlain, language = "en", load = TRUE))
-summary(docs)
 
 docs.num <- length(docs)
 
 # gather simple information about documents corpus
 docs.info.df <- data.frame(FileName = character(), 
-                           NumberOfRows = integer())
+                           NumberOfRows = integer(),
+                           NumberOfWords = integer())
 for(i in 1:docs.num) {
     docs.info.df <- rbind(docs.info.df, 
                           data.frame(FileName = docs[[i]]$meta$id, 
-                                     NumberOfRows = length(docs[[i]]$content)))
+                                     NumberOfRows = length(docs[[i]]$content),
+                                     NumberOfWords = sum(stri_count_words(docs[[i]]$content))))
 }
 ```
 
-Here are the lengths of files in number of rows:
+Here are the loaded file names, their lenghts in number of rows and total number of words:
 ```{r, echo = FALSE}
 docs.info.df
 ```
 
-Since the files are pretty big (more than 4 million rows in total), words count would be computationally expensive, expecially taking into account that the documents should be cleaned first. For the text prediction algorithms we'll use smaller sample size which will be described below.  
-
 ## Sampling and cleaning data
+The files are quite big (more than 4 millions of rows in total) and building document term matrix using original files is computationally expensive and may take a lot of time. Besides, for the word prediction task we're interested in frequent unigrams, bigrams and trigrams which can be obtained from a smaller sample.  
+
 ```{r getSample, echo = FALSE}
-sample.size <- 10000
+sample.size <- as.integer(10000)
 # copy original doc for processing (don't know how to make it more efficient yet)
 docs.sample <- docs
 # select random sample of sample.size from the original
@@ -67,6 +68,8 @@ for (i in 1:docs.num) {
 }
 ```
 
+We randomly selected **`r sample.size`** rows from each document and all further cleaning and transformations are done using the sample.  
+
 ```{r cleanDocs, echo = FALSE}
 # remove punctuation
 docs.sample <- tm_map(docs.sample, removePunctuation)   
@@ -75,11 +78,11 @@ docs.sample <- tm_map(docs.sample, removePunctuation)
 docs.sample <- tm_map(docs.sample, removeNumbers)
 
 # remove some special characters
-for(j in seq(docs.sample)) {
-    docs.sample[[j]]$content <- gsub("/", " ", docs.sample[[j]]$content)   
-    docs.sample[[j]]$content <- gsub("@", " ", docs.sample[[j]]$content)   
-    docs.sample[[j]]$content <- gsub("\\|", " ", docs.sample[[j]]$content)
-}   
+#for(j in seq(docs.sample)) {
+#    docs.sample[[j]]$content <- gsub("/", " ", docs.sample[[j]]$content)   
+#    docs.sample[[j]]$content <- gsub("@", " ", docs.sample[[j]]$content)   
+#    docs.sample[[j]]$content <- gsub("\\|", " ", docs.sample[[j]]$content)
+#}   
 
 # remove unnecessary whitespaces
 docs.sample <- tm_map(docs.sample, stripWhitespace)
@@ -90,6 +93,12 @@ docs.sample <- tm_map(docs.sample, content_transformer(tolower))
 # finalize preprocessing
 docs.sample <- tm_map(docs.sample, content_transformer(PlainTextDocument))
 ```
+
+Cleaning procedures and transformations that were applied to the sample are:  
+- remove punctuation,  
+- remove numbers,  
+- convert to lowercase,  
+- remove unnecessary whitespaces.  
 
 ```{r DocumentTermMatrix, echo = FALSE}
 ##  create document term matrix for all documents
@@ -121,6 +130,9 @@ dtms.sample.trigram <- removeSparseTerms(dtm.sample.trigram, 0.1)
 ## Exploratory analysis
 
 ### Basic information about the data
+Once the data is clean, the document term matrix can be created. It contains the frequncies of terms in each document. The frequencies of terms can be converted to probabilities for prediction modelling at later stages of the project.  
+
+Here is the default output of the document term matrix created from the data sample:  
 
 ```{r, echo = FALSE}
 # gather information about sample corpus
@@ -143,6 +155,7 @@ dtm.sample.unigram
 
 From the output we can see some useful information, including total number of terms.  
 Here are the lengths of samples, number of words instances, number of terms (unique words) per each document:  
+
 ```{r, echo = FALSE}
 # show calculated info
 docs.sample.info.df
@@ -254,7 +267,21 @@ trigram.freq.df <- data.frame(Term = factor(trigram.terms,
                               Freq = trigram.freq)
 ```
 
-Below is the barplots showing unigram terms frequencies per each document (Blogs, News and Twitter) separately and aggregated for all three documents (lower-right graph).  
+Here is the histogram to understand the distribuition of word frequencies. Due to the distribution properties, it does not look good without transformations and in order to get a better looking histogram, the distribution is shown on the log scale.  
+It is important to mention that sparse terms have been removed at earlier stage of documents processing. Black line shows **log(median)** which is around **`r round(log(median(unigram.freq.df$Freq)), 2)`** which corresponds to **median** = **`r round(median(unigram.freq.df$Freq), 2)`**.  
+This means that after removing sparse terms, half of all the words in sample documents occur less than or equal to `r round(median(unigram.freq.df$Freq), 2)` times.
+
+```{r displayHist1, echo = FALSE}
+
+# terms frequencies histogram
+qplot(log(Freq), data = unigram.freq.df, geom = "histogram", bins = 30, fill=..count..) +
+    labs(x = "log(Term Frequency)",
+         y = "Count",
+         title = "Histogram of term frequencies") +
+    geom_vline(xintercept = log(median(unigram.freq.df$Freq)), size = 2, color = "black")
+```
+
+Below are the barplots showing unigram terms frequencies per each document (Blogs, News and Twitter) separately and aggregated for all three documents (lower-right graph).  
 
 ```{r displayFreq1, fig.width = 9, fig.height = 7, echo = FALSE}
 # graphs with term frequencies per document
@@ -448,8 +475,8 @@ while(words.agg < 0.9 * words.total) {
 words.count90 <- words.count
 ```
 
-Number of frequent words covering half of the language: **`r words.count50`**  
-Number of frequent words covering 90% of the language: **`r words.count90`**  
+Number of frequent words covering half of the language: **`r as.integer(words.count50)`**  
+Number of frequent words covering 90% of the language: **`r as.integer(words.count90)`**  
 
 ### 4. How do you evaluate how many of the words come from foreign languages?  
 
@@ -458,13 +485,9 @@ Another possible way is using machine learning algorithms with language profiles
 
 ### 5. Can you think of a way to increase the coverage -- identifying words that may not be in the corpora or using a smaller number of words in the dictionary to cover the same number of phrases?  
 
-One of the ways of identifying words that may not be in the corpora can be possible if there is an external dictionary with linguistic markers such as type of the word (noun, verb, adjective, adverb, etc.)  
-Using a smaller number of words in the dictionary to cover the same number of phrases can be done by stemming words and suggesting endings based on some algorithm.
+One of the ways of identifying words that may not be in the corpora is by using an algorithm which uses external dictionary with linguistic markers such as type of the word (noun, verb, adjective, adverb, etc.) together with some machine learning algorithms that can suggest the word.  
+Using a smaller number of words in the dictionary to cover the same number of phrases can be possible by stemming words and suggesting endings based on some algorithm which takes into account grammar rules of the language.  
 
 ## References
 
-https://rstudio-pubs-static.s3.amazonaws.com/31867_8236987cf0a8444e962ccd2aec46d9c3.html
-
-https://deltadna.com/blog/text-mining-in-r-for-term-frequency/
-
-## Appendix
+[Basic Text Mining in R](https://rstudio-pubs-static.s3.amazonaws.com/31867_8236987cf0a8444e962ccd2aec46d9c3.html)
