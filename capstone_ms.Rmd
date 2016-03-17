@@ -22,6 +22,7 @@ library(stringi)
 
 # wordcloud/RWeka does not work with parallel processing when NGramTokenizer is used.
 options(mc.cores=1)
+set.seed(4444)
 ```
 
 ## Loading data
@@ -33,6 +34,7 @@ ds <- DirSource(directory = "final/en_US/")
 docs <- Corpus(ds, readerControl = list(reader = readPlain, language = "en", load = TRUE))
 
 docs.num <- length(docs)
+docs.name <- c("blogs", "news", "twitter")
 
 # gather simple information about documents corpus
 docs.info.df <- data.frame(FileName = character(), 
@@ -73,23 +75,12 @@ We randomly selected **`r sample.size`** rows from each document and all further
 ```{r cleanDocs, echo = FALSE}
 # remove punctuation
 docs.sample <- tm_map(docs.sample, removePunctuation)   
-
 # remove numbers
 docs.sample <- tm_map(docs.sample, removeNumbers)
-
-# remove some special characters
-#for(j in seq(docs.sample)) {
-#    docs.sample[[j]]$content <- gsub("/", " ", docs.sample[[j]]$content)   
-#    docs.sample[[j]]$content <- gsub("@", " ", docs.sample[[j]]$content)   
-#    docs.sample[[j]]$content <- gsub("\\|", " ", docs.sample[[j]]$content)
-#}   
-
 # remove unnecessary whitespaces
 docs.sample <- tm_map(docs.sample, stripWhitespace)
-
 # to lowecase
 docs.sample <- tm_map(docs.sample, content_transformer(tolower))
-
 # finalize preprocessing
 docs.sample <- tm_map(docs.sample, content_transformer(PlainTextDocument))
 ```
@@ -102,29 +93,17 @@ Cleaning procedures and transformations that were applied to the sample are:
 
 ```{r DocumentTermMatrix, echo = FALSE}
 ##  create document term matrix for all documents
-# Singles
-dtm.sample.unigram <- DocumentTermMatrix(docs.sample)
-
-# remove sparse terms
-dtms.sample.unigram <- removeSparseTerms(dtm.sample.unigram, 0.1)
-
-# Doubles
 bigramTokenizer <- function(x) NGramTokenizer(x, 
                                 Weka_control(min = 2, max = 2))
-
-dtm.sample.bigram <- DocumentTermMatrix(docs.sample, control = list(tokenize = bigramTokenizer))
-
-# remove sparse terms
-dtms.sample.bigram <- removeSparseTerms(dtm.sample.bigram, 0.1)
-
-# Triples
 trigramTokenizer <- function(x) NGramTokenizer(x, 
                                 Weka_control(min = 3, max = 3))
 
-dtm.sample.trigram <- DocumentTermMatrix(docs.sample, control = list(tokenize = trigramTokenizer))
+dtm.sample.l <- list(unigram = DocumentTermMatrix(docs.sample),
+                     bigram = DocumentTermMatrix(docs.sample, control = list(tokenize = bigramTokenizer)),
+                     trigram = DocumentTermMatrix(docs.sample, control = list(tokenize = trigramTokenizer)))
 
 # remove sparse terms
-dtms.sample.trigram <- removeSparseTerms(dtm.sample.trigram, 0.1)
+dtms.sample.l <- lapply(dtm.sample.l, function(x) removeSparseTerms(x, 0.1))
 ```
 
 ## Exploratory analysis
@@ -144,13 +123,13 @@ for(i in 1:docs.num) {
     docs.sample.info.df <- rbind(docs.sample.info.df, 
                                  data.frame(FileName = docs.sample[[i]]$meta$id, 
                                             NumberOfRows = length(docs.sample[[i]]$content),
-                                            NumberOfWords = sum(dtm.sample.unigram$v[dtm.sample.unigram$i == i]),
-                                            NumberOfTermsPerDocument = sum(dtm.sample.unigram$v != 0 & 
-                                                                               dtm.sample.unigram$i == i)))
+                                            NumberOfWords = sum(dtm.sample.l$unigram$v[dtm.sample.l$unigram$i == i]),
+                                            NumberOfTermsPerDocument = sum(dtm.sample.l$unigram$v != 0 & 
+                                                                               dtm.sample.l$unigram$i == i)))
 }
 
 # show output of DocumentTermMatrix
-dtm.sample.unigram
+dtm.sample.l$unigram
 ```
 
 From the output we can see some useful information, including total number of terms.  
@@ -165,127 +144,88 @@ docs.sample.info.df
 
 ```{r Freq1, echo = FALSE}
 # Create matrixes
-dtms.sample.unigram.m <- as.matrix(dtms.sample.unigram)
-dtms.sample.bigram.m <- as.matrix(dtms.sample.bigram)
-dtms.sample.trigram.m <- as.matrix(dtms.sample.trigram)
+dtms.sample.m.l <- list(unigram = as.matrix(dtms.sample.l$unigram),
+                        bigram = as.matrix(dtms.sample.l$bigram),
+                        trigram = as.matrix(dtms.sample.l$trigram))
 
 # sort frequencies of terms in separate documents
-unigram.df <- data.frame(Term = factor(), Freq = integer(), Doc = factor())
-bigram.df <- data.frame(Term = factor(), Freq = integer(), Doc = factor())
-trigram.df <- data.frame(Term = factor(), Freq = integer(), Doc = factor())
-unigram.df.top <- unigram.df
-bigram.df.top <- bigram.df
-trigram.df.top <- trigram.df
+# input - document term matrix
+getTopTerms <- function(ngram.m, n = 20) {
 
-for(i in 1:docs.num) {
-    # Unigrams
-    doc <- data.frame(Term = dimnames(dtms.sample.unigram.m)$Terms, 
-                      Freq = dtms.sample.unigram.m[i, ], 
-                      Doc = as.factor(i))
-    unigram.df <- rbind(unigram.df, 
-                        doc[order(doc$Freq, decreasing = TRUE), ])
+    # initialize structures for top list
+    df <- data.frame(Term = factor(), Freq = integer(), Doc = factor())
+    top <- df
 
-    unigram.df.top <- rbind(unigram.df.top, 
-                            unigram.df[unigram.df$Doc == i, ][1:20, ])
-
-    # Bigrams
-    doc <- data.frame(Term = dimnames(dtms.sample.bigram.m)$Terms, 
-                      Freq = dtms.sample.bigram.m[i, ], 
-                      Doc = as.factor(i))
-    bigram.df <- rbind(bigram.df, 
-                        doc[order(doc$Freq, decreasing = TRUE), ])
-
-    bigram.df.top <- rbind(bigram.df.top, 
-                           bigram.df[bigram.df$Doc == i, ][1:20, ])
-    # Trigrams
-    doc <- data.frame(Term = dimnames(dtms.sample.trigram.m)$Terms, 
-                      Freq = dtms.sample.trigram.m[i, ], 
-                      Doc = as.factor(i))
-    trigram.df <- rbind(trigram.df, 
-                        doc[order(doc$Freq, decreasing = TRUE), ])
-
-    trigram.df.top <- rbind(trigram.df.top, 
-                            trigram.df[trigram.df$Doc == i, ][1:20, ])
+    for(i in 1:docs.num) {
+        # Unigrams
+        doc <- data.frame(Term = dimnames(ngram.m)$Terms, 
+                          Freq = ngram.m[i, ], 
+                          Doc = factor(docs.name[i], levels = docs.name))
+        df <- rbind(df, doc[order(doc$Freq, decreasing = TRUE), ])
+    
+        top <- rbind(top, df[as.integer(df$Doc) == i, ][1:n, ])
+    }
+    # return result
+    top
 }
 
-# separate by docs
-unigram.df.top.blogs <- unigram.df.top[unigram.df.top$Doc == 1, ]
-unigram.df.top.blogs$Term <- factor(unigram.df.top.blogs$Term, 
-                                    levels = unique(as.character(unigram.df.top.blogs$Term)))
+# get top for all n-grams
+ngram.df.top.l <- lapply(dtms.sample.m.l, function(x) getTopTerms(x, 20))
 
-unigram.df.top.news <- unigram.df.top[unigram.df.top$Doc == 2, ]
-unigram.df.top.news$Term <- factor(unigram.df.top.news$Term, 
-                                    levels = unique(as.character(unigram.df.top.news$Term)))
+# iterate over (unigram, bigram, trigram) separate dataframe by doc id
+ngram.df.top.l.docs <- lapply(ngram.df.top.l, function(x) split(x, x$Doc))
 
-unigram.df.top.twitter <- unigram.df.top[unigram.df.top$Doc == 3, ]
-unigram.df.top.twitter$Term <- factor(unigram.df.top.twitter$Term, 
-                                    levels = unique(as.character(unigram.df.top.twitter$Term)))
+# function that reorders levels according to the order of terms corresponding 
+# to ordered frequencies
+orderLevels <- function(ngram.docs.l) { 
+    lapply(ngram.docs.l, function(y) {
+            y$Term <- factor(y$Term, 
+                             levels = unique(as.character(y$Term)))
+            y
+        })
+}
 
-bigram.df.top.blogs <- bigram.df.top[bigram.df.top$Doc == 1, ]
-bigram.df.top.blogs$Term <- factor(bigram.df.top.blogs$Term, 
-                                    levels = unique(as.character(bigram.df.top.blogs$Term)))
-bigram.df.top.news <- bigram.df.top[bigram.df.top$Doc == 2, ]
-bigram.df.top.news$Term <- factor(bigram.df.top.news$Term, 
-                                    levels = unique(as.character(bigram.df.top.news$Term)))
-bigram.df.top.twitter <- bigram.df.top[bigram.df.top$Doc == 3, ]
-bigram.df.top.twitter$Term <- factor(bigram.df.top.twitter$Term, 
-                                    levels = unique(as.character(bigram.df.top.twitter$Term)))
-
-trigram.df.top.blogs <- trigram.df.top[trigram.df.top$Doc == 1, ]
-trigram.df.top.blogs$Term <- factor(trigram.df.top.blogs$Term, 
-                                    levels = unique(as.character(trigram.df.top.blogs$Term)))
-trigram.df.top.news <- trigram.df.top[trigram.df.top$Doc == 2, ]
-trigram.df.top.news$Term <- factor(trigram.df.top.news$Term, 
-                                    levels = unique(as.character(trigram.df.top.news$Term)))
-trigram.df.top.twitter <- trigram.df.top[trigram.df.top$Doc == 3, ]
-trigram.df.top.twitter$Term <- factor(trigram.df.top.twitter$Term, 
-                                    levels = unique(as.character(trigram.df.top.twitter$Term)))
+# iterate over (unigrams, bigrams, trigrams) and apply orderLevels which iterates 
+# over docs.
+ngram.df.top.l.docs <- lapply(ngram.df.top.l.docs, orderLevels)
 
 # calculate aggregated frequency
-unigram.freq <- colSums(dtms.sample.unigram.m)
-bigram.freq <- colSums(dtms.sample.bigram.m)
-trigram.freq <- colSums(dtms.sample.trigram.m)
+freq.l <- lapply(dtms.sample.m.l, colSums)
 # sort by most frequently used words
-unigram.freq <- sort(unigram.freq, decreasing = TRUE)
-bigram.freq <- sort(bigram.freq, decreasing = TRUE)
-trigram.freq <- sort(trigram.freq, decreasing = TRUE)
+freq.l <- lapply(freq.l, function(x) sort(x, decreasing = TRUE))
+terms.l <- lapply(freq.l, names)
 
-unigram.terms <- names(unigram.freq)
-bigram.terms <- names(bigram.freq)
-trigram.terms <- names(trigram.freq)
 # dataframe for more convenient use in ggplot
-unigram.freq.df <- data.frame(Term = factor(unigram.terms, 
-                                            levels = unigram.terms), 
-                              Freq = unigram.freq)
-
-bigram.freq.df <- data.frame(Term = factor(bigram.terms, 
-                                            levels = bigram.terms), 
-                              Freq = bigram.freq)
-
-trigram.freq.df <- data.frame(Term = factor(trigram.terms, 
-                                            levels = trigram.terms), 
-                              Freq = trigram.freq)
+freq.df.l <- list(unigram = data.frame(Term = factor(terms.l$unigram, 
+                                                     levels = terms.l$unigram), 
+                                       Freq = freq.l$unigram),
+                  bigram = data.frame(Term = factor(terms.l$bigram, 
+                                                    levels = terms.l$bigram), 
+                                      Freq = freq.l$bigram),
+                  trigram = data.frame(Term = factor(terms.l$trigram, 
+                                                     levels = terms.l$trigram), 
+                                       Freq = freq.l$trigram))
 ```
 
 Here is the histogram to understand the distribuition of word frequencies. Due to the distribution properties, it does not look good without transformations and in order to get a better looking histogram, the distribution is shown on the log scale.  
-It is important to mention that sparse terms have been removed at earlier stage of documents processing. Black line shows **log(median)** which is around **`r round(log(median(unigram.freq.df$Freq)), 2)`** which corresponds to **median** = **`r round(median(unigram.freq.df$Freq), 2)`**.  
-This means that after removing sparse terms, half of all the words in sample documents occur less than or equal to `r round(median(unigram.freq.df$Freq), 2)` times.
+It is important to mention that sparse terms have been removed at earlier stage of documents processing. Black line shows **log(median)** which is around **`r round(log(median(freq.df.l$unigram$Freq)), 2)`** which corresponds to **median** = **`r round(median(freq.df.l$unigram$Freq), 2)`**.  
+This means that after removing sparse terms, half of all the words in sample documents occur less than or equal to `r round(median(freq.df.l$unigram$Freq), 2)` times.
 
 ```{r displayHist1, echo = FALSE}
 
 # terms frequencies histogram
-qplot(log(Freq), data = unigram.freq.df, geom = "histogram", bins = 30, fill=..count..) +
+qplot(log(Freq), data = freq.df.l$unigram, geom = "histogram", bins = 30, fill=..count..) +
     labs(x = "log(Term Frequency)",
          y = "Count",
          title = "Histogram of term frequencies") +
-    geom_vline(xintercept = log(median(unigram.freq.df$Freq)), size = 2, color = "black")
+    geom_vline(xintercept = log(median(freq.df.l$unigram$Freq)), size = 2, color = "black")
 ```
 
 Below are the barplots showing unigram terms frequencies per each document (Blogs, News and Twitter) separately and aggregated for all three documents (lower-right graph).  
 
 ```{r displayFreq1, fig.width = 9, fig.height = 7, echo = FALSE}
 # graphs with term frequencies per document
-g.perdoc1.bar <- ggplot(data = unigram.df.top.blogs, 
+g.perdoc1.bar <- ggplot(data = ngram.df.top.l.docs$unigram$blogs, 
                        aes(Term, Freq, fill = Freq)) + 
     geom_bar(stat = "identity") + 
     labs(x = "Terms",
@@ -293,7 +233,7 @@ g.perdoc1.bar <- ggplot(data = unigram.df.top.blogs,
          title = "Most frequent terms in Blogs") +
     theme(axis.text.x=element_text(angle = 75, hjust = 1))
 
-g.perdoc2.bar <- ggplot(data = unigram.df.top.news, 
+g.perdoc2.bar <- ggplot(data = ngram.df.top.l.docs$unigram$news, 
                        aes(Term, Freq, fill = Freq)) + 
     geom_bar(stat = "identity") + 
     labs(x = "Terms",
@@ -301,7 +241,7 @@ g.perdoc2.bar <- ggplot(data = unigram.df.top.news,
          title = "Most frequent terms in News") +
     theme(axis.text.x=element_text(angle = 75, hjust = 1))
 
-g.perdoc3.bar <- ggplot(data = unigram.df.top.twitter, 
+g.perdoc3.bar <- ggplot(data = ngram.df.top.l.docs$unigram$twitter, 
                        aes(Term, Freq, fill = Freq)) + 
     geom_bar(stat = "identity") + 
     labs(x = "Terms",
@@ -310,7 +250,7 @@ g.perdoc3.bar <- ggplot(data = unigram.df.top.twitter,
     theme(axis.text.x=element_text(angle = 75, hjust = 1))
 
 # graph with most frequent terms aggregated for all document
-g.agg.bar <- ggplot(data = unigram.freq.df[1:20, ], 
+g.agg.bar <- ggplot(data = freq.df.l$unigram[1:20, ], 
                     aes(Term, Freq, fill = Freq)) +
     geom_bar(stat = "identity") +
     labs(x = "Terms",
@@ -326,8 +266,8 @@ For quick perception of the terms frequencies one can have a look at words cloud
 
 ```{r displayWC1, echo = FALSE}
 # draw wordcloud
-wordcloud(words = unigram.terms[1:100], 
-          freq = unigram.freq[1:100], 
+wordcloud(words = terms.l$unigram[1:100], 
+          freq = freq.l$unigram[1:100], 
           random.order = FALSE, 
           scale = c(8, 1),
           min.freq = 1,
@@ -342,7 +282,7 @@ Similar to unigram terms, here are the barplots for bigrams:
 ```{r displayFreq2, fig.width = 9, fig.height = 7, echo = FALSE}
 ## Bigrams
 # graphs with term frequencies per document
-g.perdoc1.bar <- ggplot(data = bigram.df.top.blogs, 
+g.perdoc1.bar <- ggplot(data = ngram.df.top.l.docs$bigram$blogs, 
                        aes(Term, Freq, fill = Freq)) + 
     geom_bar(stat = "identity") + 
     labs(x = "Terms",
@@ -350,7 +290,7 @@ g.perdoc1.bar <- ggplot(data = bigram.df.top.blogs,
          title = "Most frequent terms in Blogs") +
     theme(axis.text.x=element_text(angle = 75, hjust = 1))
 
-g.perdoc2.bar <- ggplot(data = bigram.df.top.news, 
+g.perdoc2.bar <- ggplot(data = ngram.df.top.l.docs$bigram$news, 
                        aes(Term, Freq, fill = Freq)) + 
     geom_bar(stat = "identity") + 
     labs(x = "Terms",
@@ -358,7 +298,7 @@ g.perdoc2.bar <- ggplot(data = bigram.df.top.news,
          title = "Most frequent terms in News") +
     theme(axis.text.x=element_text(angle = 75, hjust = 1))
 
-g.perdoc3.bar <- ggplot(data = bigram.df.top.twitter, 
+g.perdoc3.bar <- ggplot(data = ngram.df.top.l.docs$bigram$twitter, 
                        aes(Term, Freq, fill = Freq)) + 
     geom_bar(stat = "identity") + 
     labs(x = "Terms",
@@ -367,7 +307,7 @@ g.perdoc3.bar <- ggplot(data = bigram.df.top.twitter,
     theme(axis.text.x=element_text(angle = 75, hjust = 1))
 
 # graph with most frequent terms aggregated for all document
-g.agg.bar <- ggplot(data = bigram.freq.df[1:20, ], 
+g.agg.bar <- ggplot(data = freq.df.l$bigram[1:20, ], 
                     aes(Term, Freq, fill = Freq)) +
     geom_bar(stat = "identity") +
     labs(x = "Terms",
@@ -381,8 +321,8 @@ grid.draw(graphs)
 
 ```{r displayWC2, echo = FALSE, eval = FALSE}
 # draw wordcloud
-wordcloud(words = bigram.terms[1:100], 
-          freq = bigram.freq[1:100], 
+wordcloud(words = terms.l$bigram[1:100], 
+          freq = freq.l$bigram[1:100], 
           random.order = FALSE, 
           scale = c(4, 0.3),
           min.freq = 1,
@@ -396,7 +336,7 @@ Same way of presentation for trigram term frequencies. The difference of most fr
 ```{r displayFreq3, fig.width = 9, fig.height = 7, echo = FALSE}
 ## Trigrams
 # graphs with term frequencies per document
-g.perdoc1.bar <- ggplot(data = trigram.df.top.blogs, 
+g.perdoc1.bar <- ggplot(data = ngram.df.top.l.docs$trigram$blogs, 
                        aes(Term, Freq, fill = Freq)) + 
     geom_bar(stat = "identity") + 
     labs(x = "Terms",
@@ -404,7 +344,7 @@ g.perdoc1.bar <- ggplot(data = trigram.df.top.blogs,
          title = "Most frequent terms in Blogs") +
     theme(axis.text.x=element_text(angle = 75, hjust = 1))
 
-g.perdoc2.bar <- ggplot(data = trigram.df.top.news, 
+g.perdoc2.bar <- ggplot(data = ngram.df.top.l.docs$trigram$news, 
                        aes(Term, Freq, fill = Freq)) + 
     geom_bar(stat = "identity") + 
     labs(x = "Terms",
@@ -412,7 +352,7 @@ g.perdoc2.bar <- ggplot(data = trigram.df.top.news,
          title = "Most frequent terms in News") +
     theme(axis.text.x=element_text(angle = 75, hjust = 1))
 
-g.perdoc3.bar <- ggplot(data = trigram.df.top.twitter, 
+g.perdoc3.bar <- ggplot(data = ngram.df.top.l.docs$trigram$twitter, 
                        aes(Term, Freq, fill = Freq)) + 
     geom_bar(stat = "identity") + 
     labs(x = "Terms",
@@ -421,7 +361,7 @@ g.perdoc3.bar <- ggplot(data = trigram.df.top.twitter,
     theme(axis.text.x=element_text(angle = 75, hjust = 1))
 
 # graph with most frequent terms aggregated for all document
-g.agg.bar <- ggplot(data = trigram.freq.df[1:20, ], 
+g.agg.bar <- ggplot(data = freq.df.l$trigram[1:20, ], 
                     aes(Term, Freq, fill = Freq)) +
     geom_bar(stat = "identity") +
     labs(x = "Terms",
@@ -435,8 +375,8 @@ grid.draw(graphs)
 
 ```{r displayWC3, echo = FALSE, eval = FALSE}
 # draw wordcloud
-wordcloud(words = trigram.terms[1:100], 
-          freq = trigram.freq[1:100], 
+wordcloud(words = terms.l$trigram[1:100], 
+          freq = freq.l$trigram[1:100], 
           random.order = FALSE, 
           scale = c(3, 0.2),
           min.freq = 1,
@@ -448,7 +388,7 @@ wordcloud(words = trigram.terms[1:100],
 ### 3. How many unique words do you need in a frequency sorted dictionary to cover 50% of all word instances in the language? 90%?  
 ```{r, echo = FALSE}
 # using dtm with sparse terms
-dtm.sample.unigram.m <- as.matrix(dtm.sample.unigram)
+dtm.sample.unigram.m <- as.matrix(dtm.sample.l$unigram)
 
 # calculate frequency
 frequency <- colSums(dtm.sample.unigram.m)
@@ -475,8 +415,8 @@ while(words.agg < 0.9 * words.total) {
 words.count90 <- words.count
 ```
 
-Number of frequent words covering half of the language: **`r as.integer(words.count50)`**  
-Number of frequent words covering 90% of the language: **`r as.integer(words.count90)`**  
+Number of frequent words covering half of all word instances in the language: **`r as.integer(words.count50)`**  
+Number of frequent words covering 90% of all word instances in the language: **`r as.integer(words.count90)`**  
 
 ### 4. How do you evaluate how many of the words come from foreign languages?  
 

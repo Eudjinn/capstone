@@ -46,10 +46,10 @@ Here is the default output of the document term matrix created from the data sam
 
 
 ```
-## <<DocumentTermMatrix (documents: 3, terms: 51762)>>
-## Non-/sparse entries: 76844/78442
+## <<DocumentTermMatrix (documents: 3, terms: 51141)>>
+## Non-/sparse entries: 75758/77665
 ## Sparsity           : 51%
-## Maximal term length: 114
+## Maximal term length: 253
 ## Weighting          : term frequency (tf)
 ```
 
@@ -59,9 +59,9 @@ Here are the lengths of samples, number of words instances, number of terms (uni
 
 ```
 ##            FileName NumberOfRows NumberOfWords NumberOfTermsPerDocument
-## 1   en_US.blogs.txt        10000        319034                    31004
-## 2    en_US.news.txt        10000        271125                    30469
-## 3 en_US.twitter.txt        10000         96899                    15371
+## 1   en_US.blogs.txt        10000        311806                    30489
+## 2    en_US.news.txt        10000        272044                    30132
+## 3 en_US.twitter.txt        10000         96150                    15137
 ```
 
 ### 1. Some words are more frequent than others - what are the distributions of word frequencies?  
@@ -98,8 +98,8 @@ Same way of presentation for trigram term frequencies. The difference of most fr
 ### 3. How many unique words do you need in a frequency sorted dictionary to cover 50% of all word instances in the language? 90%?  
 
 
-Number of frequent words covering half of the language: **331**  
-Number of frequent words covering 90% of the language: **10031**  
+Number of frequent words covering half of all word instances in the language: **325**  
+Number of frequent words covering 90% of all word instances in the language: **9760**  
 
 ### 4. How do you evaluate how many of the words come from foreign languages?  
 
