@@ -1,7 +1,7 @@
 ---
 title: "Text prediction - milestone assignment of the capstone project"
 author: "Evgeniy Zabrodskiy"
-date: "17 March 2016"
+date: "18 March 2016"
 output: 
   html_document: 
     keep_md: yes
@@ -208,7 +208,7 @@ freq.df.l <- list(unigram = data.frame(Term = factor(terms.l$unigram,
                                        Freq = freq.l$trigram))
 ```
 
-```{r withSparseFreq}
+```{r withSparseFreq, echo = FALSE}
 # using dtm with sparse terms
 dtm.sample.unigram.m <- as.matrix(dtm.sample.l$unigram)
 # calculate frequency
@@ -221,7 +221,7 @@ sparse.freq.df <- data.frame(Term = factor(terms, levels = terms),
                              Freq = frequency)
 ```
 
-Here are the histograms to understand the distribution of word frequencies. Due to the distribution properties, it does not look good without transformations and in order to get a better looking histograms, the distribution is shown on the log scale.  
+Here are the histograms to understand the distribution of word frequencies. Due to the distribution properties, it does not look good without transformations and in order to get a better looking histograms, the distribution is shown on the **log scale**.  
 The histogram on the left shows the distribition of word frequencies including sparse terms, the histogram on the right shows the same kind of distribution but with sparse terms removed from the matrix.  
 We can see that the more frequent the word is (to the right on the histogram), the less number of words with such a high frequency there are.  
 
@@ -290,7 +290,7 @@ graphs <- arrangeGrob(g.perdoc1.bar, g.perdoc2.bar, g.perdoc3.bar, g.agg.bar, nc
 grid.draw(graphs)
 ```
 
-For quick perception of the terms frequencies one can have a look at words cloud:  
+For quick perception of the term frequencies one can have a look at the word cloud:  
 
 ```{r displayWC1, echo = FALSE}
 # draw wordcloud

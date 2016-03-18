@@ -1,6 +1,6 @@
 # Text prediction - milestone assignment of the capstone project
 Evgeniy Zabrodskiy  
-17 March 2016  
+18 March 2016  
 
 ## Synopsis
 The goal of this analysis is to understand the distribution and relationship between the words, tokens, and phrases in the text in order to build a predictive model.
@@ -70,20 +70,8 @@ Here are the lengths of samples, number of words instances, number of terms (uni
 
 
 
-```r
-# using dtm with sparse terms
-dtm.sample.unigram.m <- as.matrix(dtm.sample.l$unigram)
-# calculate frequency
-frequency <- colSums(dtm.sample.unigram.m)
-# sort by most frequently used words
-frequency <- sort(frequency, decreasing = TRUE)
-terms <- names(frequency)
 
-sparse.freq.df <- data.frame(Term = factor(terms, levels = terms), 
-                             Freq = frequency)
-```
-
-Here are the histograms to understand the distribution of word frequencies. Due to the distribution properties, it does not look good without transformations and in order to get a better looking histograms, the distribution is shown on the log scale.  
+Here are the histograms to understand the distribution of word frequencies. Due to the distribution properties, it does not look good without transformations and in order to get a better looking histograms, the distribution is shown on the **log scale**.  
 The histogram on the left shows the distribition of word frequencies including sparse terms, the histogram on the right shows the same kind of distribution but with sparse terms removed from the matrix.  
 We can see that the more frequent the word is (to the right on the histogram), the less number of words with such a high frequency there are.  
 
@@ -93,7 +81,7 @@ Below are the barplots showing unigram terms frequencies per each document (Blog
 
 ![](capstone_ms_files/figure-html/displayFreq1-1.png)
 
-For quick perception of the terms frequencies one can have a look at words cloud:  
+For quick perception of the term frequencies one can have a look at the word cloud:  
 
 ![](capstone_ms_files/figure-html/displayWC1-1.png)
 
