@@ -2,9 +2,9 @@
 Evgeniy Zabrodskiy  
 17 March 2016  
 
-# Synopsis
+## Synopsis
 The goal of this analysis is to understand the distribution and relationship between the words, tokens, and phrases in the text in order to build a predictive model.
-The distributions of frequencies of words, word pairs and word triplets are analised and shown in form of word clouds and barplots.
+The distributions of frequencies of words, word pairs and word triplets are analised and shown in form of histograms, word clouds and barplots.
 
 
 
@@ -64,13 +64,28 @@ Here are the lengths of samples, number of words instances, number of terms (uni
 ## 3 en_US.twitter.txt        10000         96150                    15137
 ```
 
-### 1. Some words are more frequent than others - what are the distributions of word frequencies?  
+### Questions of the analysis
+#### 1. Some words are more frequent than others - what are the distributions of word frequencies?  
 
 
 
-Here is the histogram to understand the distribuition of word frequencies. Due to the distribution properties, it does not look good without transformations and in order to get a better looking histogram, the distribution is shown on the log scale.  
-It is important to mention that sparse terms have been removed at earlier stage of documents processing. Black line shows **log(median)** which is around **2.89** which corresponds to **median** = **18**.  
-This means that after removing sparse terms, half of all the words in sample documents occur less than or equal to 18 times.
+
+```r
+# using dtm with sparse terms
+dtm.sample.unigram.m <- as.matrix(dtm.sample.l$unigram)
+# calculate frequency
+frequency <- colSums(dtm.sample.unigram.m)
+# sort by most frequently used words
+frequency <- sort(frequency, decreasing = TRUE)
+terms <- names(frequency)
+
+sparse.freq.df <- data.frame(Term = factor(terms, levels = terms), 
+                             Freq = frequency)
+```
+
+Here are the histograms to understand the distribution of word frequencies. Due to the distribution properties, it does not look good without transformations and in order to get a better looking histograms, the distribution is shown on the log scale.  
+The histogram on the left shows the distribition of word frequencies including sparse terms, the histogram on the right shows the same kind of distribution but with sparse terms removed from the matrix.  
+We can see that the more frequent the word is (to the right on the histogram), the less number of words with such a high frequency there are.  
 
 ![](capstone_ms_files/figure-html/displayHist1-1.png)
 
@@ -82,7 +97,7 @@ For quick perception of the terms frequencies one can have a look at words cloud
 
 ![](capstone_ms_files/figure-html/displayWC1-1.png)
 
-### 2. What are the frequencies of 2-grams and 3-grams in the dataset?  
+#### 2. What are the frequencies of 2-grams and 3-grams in the dataset?  
 Similar to unigram terms, here are the barplots for bigrams:  
 
 ![](capstone_ms_files/figure-html/displayFreq2-1.png)
@@ -95,20 +110,20 @@ Same way of presentation for trigram term frequencies. The difference of most fr
 
 
 
-### 3. How many unique words do you need in a frequency sorted dictionary to cover 50% of all word instances in the language? 90%?  
+#### 3. How many unique words do you need in a frequency sorted dictionary to cover 50% of all word instances in the language? 90%?  
 
 
 Number of frequent words covering half of all word instances in the language: **325**  
 Number of frequent words covering 90% of all word instances in the language: **9760**  
 
-### 4. How do you evaluate how many of the words come from foreign languages?  
+#### 4. How do you evaluate how many of the words come from foreign languages?  
 
 One of the ways to identify foreign words is by looking up for a word in a language dictionary. This approach is quite straighforward and has disadvantages such as incorrect classification of misspelled words.  
-Another possible way is using machine learning algorithms with language profiles. This approach is used in *langid* library.  
+Another possible way is using machine learning algorithms with language profiles. Similar approach is used in *langid* library.  
 
-### 5. Can you think of a way to increase the coverage -- identifying words that may not be in the corpora or using a smaller number of words in the dictionary to cover the same number of phrases?  
+#### 5. Can you think of a way to increase the coverage -- identifying words that may not be in the corpora or using a smaller number of words in the dictionary to cover the same number of phrases?  
 
-One of the ways of identifying words that may not be in the corpora is by using an algorithm which uses external dictionary with linguistic markers such as type of the word (noun, verb, adjective, adverb, etc.) together with some machine learning algorithms that can suggest the word.  
+Identifying words that may not be in the corpora can be done by an algorithm which uses external dictionary with linguistic markers such as type of the word (noun, verb, adjective, adverb, etc.) together with some machine learning algorithms that can suggest the word.  
 Using a smaller number of words in the dictionary to cover the same number of phrases can be possible by stemming words and suggesting endings based on some algorithm which takes into account grammar rules of the language.  
 
 ## References

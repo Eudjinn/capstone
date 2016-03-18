@@ -7,9 +7,9 @@ output:
     keep_md: yes
 ---
 
-# Synopsis
+## Synopsis
 The goal of this analysis is to understand the distribution and relationship between the words, tokens, and phrases in the text in order to build a predictive model.
-The distributions of frequencies of words, word pairs and word triplets are analised and shown in form of word clouds and barplots.
+The distributions of frequencies of words, word pairs and word triplets are analised and shown in form of histograms, word clouds and barplots.
 
 ```{r, echo = FALSE, results = "hide", warning = FALSE, message = FALSE}
 library(tm)
@@ -128,7 +128,7 @@ for(i in 1:docs.num) {
                                                                                dtm.sample.l$unigram$i == i)))
 }
 
-# show output of DocumentTermMatrix
+# show output of DocumentTermMatrix with sparse terms
 dtm.sample.l$unigram
 ```
 
@@ -140,7 +140,8 @@ Here are the lengths of samples, number of words instances, number of terms (uni
 docs.sample.info.df
 ```
 
-### 1. Some words are more frequent than others - what are the distributions of word frequencies?  
+### Questions of the analysis
+#### 1. Some words are more frequent than others - what are the distributions of word frequencies?  
 
 ```{r Freq1, echo = FALSE}
 # Create matrixes
@@ -207,18 +208,45 @@ freq.df.l <- list(unigram = data.frame(Term = factor(terms.l$unigram,
                                        Freq = freq.l$trigram))
 ```
 
-Here is the histogram to understand the distribuition of word frequencies. Due to the distribution properties, it does not look good without transformations and in order to get a better looking histogram, the distribution is shown on the log scale.  
-It is important to mention that sparse terms have been removed at earlier stage of documents processing. Black line shows **log(median)** which is around **`r round(log(median(freq.df.l$unigram$Freq)), 2)`** which corresponds to **median** = **`r round(median(freq.df.l$unigram$Freq), 2)`**.  
-This means that after removing sparse terms, half of all the words in sample documents occur less than or equal to `r round(median(freq.df.l$unigram$Freq), 2)` times.
+```{r withSparseFreq}
+# using dtm with sparse terms
+dtm.sample.unigram.m <- as.matrix(dtm.sample.l$unigram)
+# calculate frequency
+frequency <- colSums(dtm.sample.unigram.m)
+# sort by most frequently used words
+frequency <- sort(frequency, decreasing = TRUE)
+terms <- names(frequency)
 
-```{r displayHist1, echo = FALSE}
+sparse.freq.df <- data.frame(Term = factor(terms, levels = terms), 
+                             Freq = frequency)
+```
 
-# terms frequencies histogram
-qplot(log(Freq), data = freq.df.l$unigram, geom = "histogram", bins = 30, fill=..count..) +
+Here are the histograms to understand the distribution of word frequencies. Due to the distribution properties, it does not look good without transformations and in order to get a better looking histograms, the distribution is shown on the log scale.  
+The histogram on the left shows the distribition of word frequencies including sparse terms, the histogram on the right shows the same kind of distribution but with sparse terms removed from the matrix.  
+We can see that the more frequent the word is (to the right on the histogram), the less number of words with such a high frequency there are.  
+
+```{r displayHist1, echo = FALSE, fig.width = 9, fig.height = 3}
+hist.sparse <- qplot(log(Freq), 
+                     data = sparse.freq.df, 
+                     geom = "histogram", 
+                     bins = 20, 
+                     fill=..count..) +
     labs(x = "log(Term Frequency)",
          y = "Count",
-         title = "Histogram of term frequencies") +
-    geom_vline(xintercept = log(median(freq.df.l$unigram$Freq)), size = 2, color = "black")
+         title = "Frequencies of words")
+
+# terms frequencies histogram
+hist.wosparse <- qplot(log(Freq), 
+                       data = freq.df.l$unigram, 
+                       geom = "histogram", 
+                       bins = 20, 
+                       fill=..count..) +
+    labs(x = "log(Term Frequency)",
+         y = "Count",
+         title = "Frequencies without sparse terms")
+
+hists <- arrangeGrob(hist.sparse, hist.wosparse, ncol = 2)
+grid.draw(hists)
 ```
 
 Below are the barplots showing unigram terms frequencies per each document (Blogs, News and Twitter) separately and aggregated for all three documents (lower-right graph).  
@@ -276,7 +304,7 @@ wordcloud(words = terms.l$unigram[1:100],
           colors = brewer.pal(8, "Dark2"))
 ```
 
-### 2. What are the frequencies of 2-grams and 3-grams in the dataset?  
+#### 2. What are the frequencies of 2-grams and 3-grams in the dataset?  
 Similar to unigram terms, here are the barplots for bigrams:  
 
 ```{r displayFreq2, fig.width = 9, fig.height = 7, echo = FALSE}
@@ -385,17 +413,9 @@ wordcloud(words = terms.l$trigram[1:100],
           colors = brewer.pal(8, "Dark2"))
 ```
 
-### 3. How many unique words do you need in a frequency sorted dictionary to cover 50% of all word instances in the language? 90%?  
+#### 3. How many unique words do you need in a frequency sorted dictionary to cover 50% of all word instances in the language? 90%?  
 ```{r, echo = FALSE}
-# using dtm with sparse terms
-dtm.sample.unigram.m <- as.matrix(dtm.sample.l$unigram)
-
-# calculate frequency
-frequency <- colSums(dtm.sample.unigram.m)
-
-# sort by most frequently used words
-frequency <- sort(frequency, decreasing = TRUE)
-
+# reusing data calculated in withSparseFreq section
 words.total <- sum(frequency)
 words.agg <- 0
 words.count <- 1
@@ -418,14 +438,14 @@ words.count90 <- words.count
 Number of frequent words covering half of all word instances in the language: **`r as.integer(words.count50)`**  
 Number of frequent words covering 90% of all word instances in the language: **`r as.integer(words.count90)`**  
 
-### 4. How do you evaluate how many of the words come from foreign languages?  
+#### 4. How do you evaluate how many of the words come from foreign languages?  
 
 One of the ways to identify foreign words is by looking up for a word in a language dictionary. This approach is quite straighforward and has disadvantages such as incorrect classification of misspelled words.  
-Another possible way is using machine learning algorithms with language profiles. This approach is used in *langid* library.  
+Another possible way is using machine learning algorithms with language profiles. Similar approach is used in *langid* library.  
 
-### 5. Can you think of a way to increase the coverage -- identifying words that may not be in the corpora or using a smaller number of words in the dictionary to cover the same number of phrases?  
+#### 5. Can you think of a way to increase the coverage -- identifying words that may not be in the corpora or using a smaller number of words in the dictionary to cover the same number of phrases?  
 
-One of the ways of identifying words that may not be in the corpora is by using an algorithm which uses external dictionary with linguistic markers such as type of the word (noun, verb, adjective, adverb, etc.) together with some machine learning algorithms that can suggest the word.  
+Identifying words that may not be in the corpora can be done by an algorithm which uses external dictionary with linguistic markers such as type of the word (noun, verb, adjective, adverb, etc.) together with some machine learning algorithms that can suggest the word.  
 Using a smaller number of words in the dictionary to cover the same number of phrases can be possible by stemming words and suggesting endings based on some algorithm which takes into account grammar rules of the language.  
 
 ## References
