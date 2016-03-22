@@ -5,36 +5,8 @@ library(tm)
 # options(mc.cores=1)
 set.seed(4444)
 
-########### Util
-getFirstThreeWords <- function(s) {
-#    stri_extract_first(s, regex = "^[a-z]* [a-z]* [a-z]*")
-    stri_extract_first(s, regex = "^[^ ]* [^ ]* [^ ]*")
-}
+source("utils.R")
 
-getFirstTwoWords <- function(s) {
-#    stri_extract_first(s, regex = "^[a-z]* [a-z]*")
-    stri_extract_first(s, regex = "^[^ ]* [^ ]*")
-}
-
-getFirstWord <- function(s) {
- #   stri_extract_first(s, regex = "^[a-z]*")
-    stri_extract_first(s, regex = "^[^ ]*")
-}
-
-getLastWord <- function(s) {
-#    stri_extract_first(s, regex = "[a-z]*$")
-        stri_extract_first(s, regex = "[^ ]*$")
-}
-
-removeTwoFirstWords <- function(s) {
-#    stri_replace_first(s, "", regex = "^[a-z]* [a-z]* *")
-    stri_replace_first(s, "", regex = "^[^ ]* [^ ]* *")
-}
-
-removeFirstWord <- function(s) {
-#    stri_replace_first(s, "", regex = "^[a-z]* *")
-    stri_replace_first(s, "", regex = "^[^ ]* *")
-}
 ###############
 ## Loading data
 
@@ -45,6 +17,10 @@ removeFirstWord <- function(s) {
 blogs <- readLines("final/en_US/en_US.blogs.txt", encoding = "UTF-8", skipNul = TRUE)
 news <- readLines("final/en_US/en_US.news.txt", encoding = "UTF-8", skipNul = TRUE)
 twitter <- readLines("final/en_US/en_US.twitter.txt", encoding = "UTF-8", skipNul = TRUE)
+blogs <- iconv(blogs, "UTF-8", "ascii", sub = " ")
+news <- iconv(news, "UTF-8", "ascii", sub = " ")
+twitter <- iconv(twitter, "UTF-8", "ascii", sub = " ")
+
 all <- c(blogs, news, twitter)
 
 c.blogs <- corpus(blogs)
@@ -77,6 +53,10 @@ c.all.sample <- c.blogs.sample + c.news.sample + c.twitter.sample
 dtm.sample.unigram <- dfm(c.all.sample)
 dtm.sample.bigram <- dfm(c.all.sample, ngrams = 2L, concatenator = " ")
 dtm.sample.trigram <- dfm(c.all.sample, ngrams = 3L, concatenator = " ")
+
+dtm.sample.unigram <- trim(dtm.sample.unigram, minCount = 10, minDoc = 1) 
+dtm.sample.bigram <- trim(dtm.sample.bigram, minCount = 3, minDoc = 1) 
+dtm.sample.trigram <- trim(dtm.sample.trigram, minCount = 2, minDoc = 1) 
 
 ### Prediction
 
@@ -112,6 +92,21 @@ freq.df.l <- list(unigram = data.frame(Key = factor(uni.key,
                                                      levels = unique(tri.word)), 
                                        Freq = tri.freq))
 
+freq.df.uni <- data.frame(Key = uni.key, 
+                          Word = uni.word, 
+                          Freq = uni.freq,
+                          Ngram = 1)
+freq.df.bi <- data.frame(Key = bi.key, 
+                          Word = bi.word, 
+                          Freq = bi.freq,
+                          Ngram = 2)
+freq.df.tri <- data.frame(Key = tri.key, 
+                          Word = tri.word, 
+                          Freq = tri.freq,
+                          Ngram = 3)
+
+freq.df <- rbind(freq.df.uni, freq.df.bi, freq.df.tri)
+
 ## NEEDS TO BE OPTIMIZED
 # Think about dictionary encoding instead of grepping all the time
 predictWord <- function(phrase, ngram.df.l, n = 1) {
@@ -145,53 +140,62 @@ predictWord <- function(phrase, ngram.df.l, n = 1) {
     predicted.word
 }
 
-# predicted <- sapply(testset$pair, function(x) predictWord(x, ngram.df.l, 1))
+unigram.df <- freq.df[freq.df$Ngram == 1, ]
+bigram.df <- freq.df[freq.df$Ngram == 2, ]
+trigram.df <- freq.df[freq.df$Ngram == 3, ]
 
-splitStringToSet <- function(s) {
-    triples <- list()
-    triple <- triples
-    len <- stri_count_words(s)
-    while(len > 2) {
-        three <- getFirstThreeWords(s)
-        two <- getFirstTwoWords(three)
-        triple$pair <- c(triple$pair, two)
-        triple$word <- c(triple$word, removeTwoFirstWords(three))
-        
-        s <- removeFirstWord(s)
-        len <- len - 1
+predictWord1 <- function(phrase, uni, bi, tri, n = 1) {
+    phrase.first <- getFirstWord(phrase)
+    phrase.last <- getLastWord(phrase)
+    
+    trigram.id <- which(phrase == tri$Key)
+    predicted.id <- 1:n #which.max(prob)
+    
+    if(length(trigram.id) > 0) {
+        trigram.freq <- tri$Freq[trigram.id]
+        bigram.id <- which(phrase.last == bi$Word)
+        bigram.freq <- bi$Freq[bigram.id]
+        # since all structures are ordered, the best will be on the top
+        predicted.word <- tri$Word[trigram.id[predicted.id]]
+    } else {
+        bigram.id <- which(phrase.last == bi$Key)
+        if(length(bigram.id) > 0) {
+            # frequency is not used now
+            bigram.freq <- bi$Freq[bigram.id]
+            # since all structures are ordered, the best will be on the top
+            predicted.word <- bi$Word[bigram.id[predicted.id]]
+        } else {
+            unigram.id <- 1:n
+            predicted.word <- uni$Word[unigram.id[predicted.id]]
+        }
     }
-    triples <- c(triples, triple)
-    triples
+    predicted.word
 }
+
+# predicted <- sapply(testset$pair, function(x) predictWord(x, ngram.df.l, 1))
 
 ###################
 predictWord("going to", freq.df.l, n = 1)
+predictWord1("going to", unigram.df, bigram.df, trigram.df, n = 1)
 
-superpaste <- function(x) { 
-    s <- character()
-    for(i in 1:length(x)) {
-        s <- paste(s, x[i])
-    }
-    s
-}
 # REWRITE
 all.sample.test <- sample(all, sample.size)
 tm.all.sample.test <- Corpus(VectorSource(all.sample.test), readerControl = list(reader = readPlain, language = "en", load = TRUE))
 
-tm.all.sample.test <- tm_map(tm.all.sample.test, removePunctuation, preserve_intra_word_dashes = TRUE)   
+tm.all.sample.test <- tm_map(tm.all.sample.test, content_transformer(function(x){gsub("[^[:alnum:]['-]", " ", x)}))   
 tm.all.sample.test <- tm_map(tm.all.sample.test, removeNumbers)
 tm.all.sample.test <- tm_map(tm.all.sample.test, stripWhitespace)
 tm.all.sample.test <- tm_map(tm.all.sample.test, content_transformer(tolower))
 tm.all.sample.test <- tm_map(tm.all.sample.test, content_transformer(PlainTextDocument))
 ###
-devtest <- lapply(tm.all.sample.test[1:10], function(x) splitStringToSet(x$content))
+devtest <- lapply(tm.all.sample.test[1:100], function(x) splitStringToSet(x$content))
+testpairs <- sapply(devtest, function(x) x$pair)
+testpairs <- as.character(unlist(testpairs))
 testwords <- sapply(devtest, function(x) x$word)
 testwords <- as.character(unlist(testwords))
 ###
-predicted <- sapply(devtest, function(x) {
-    sapply(x$pair, function(y) predictWord(y, freq.df.l, 1))
-})
-predicted <- unlist(predicted)
+
+predicted <- sapply(testpairs, function(y) predictWord1(y, unigram.df, bigram.df, trigram.df, 1))
 predicted <- as.character(predicted)
 ###
 table(testwords == predicted)
