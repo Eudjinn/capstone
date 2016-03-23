@@ -1,172 +1,180 @@
 library(quanteda)
 library(stringi)
-library(tm)
+library(data.table)
+library(parallel)
+library(hash)
 
-# options(mc.cores=1)
-set.seed(4444)
+options(mc.cores = max(1, detectCores()))
 
 source("utils.R")
+
+sample.size <- as.integer(5000)
+sample.percent <- as.numeric(0.05)
+test <- 1
 
 ###############
 ## Loading data
 
-# blogs <- textfile("final/en_US/en_US.blogs.txt")
-# news <- textfile("final/en_US/en_US.news.txt")
-# twitter <- textfile("final/en_US/en_US.twitter.txt")
-
 blogs <- readLines("final/en_US/en_US.blogs.txt", encoding = "UTF-8", skipNul = TRUE)
 news <- readLines("final/en_US/en_US.news.txt", encoding = "UTF-8", skipNul = TRUE)
 twitter <- readLines("final/en_US/en_US.twitter.txt", encoding = "UTF-8", skipNul = TRUE)
-blogs <- iconv(blogs, "UTF-8", "ascii", sub = " ")
-news <- iconv(news, "UTF-8", "ascii", sub = " ")
-twitter <- iconv(twitter, "UTF-8", "ascii", sub = " ")
 
 all <- c(blogs, news, twitter)
 
-c.blogs <- corpus(blogs)
-c.news <- corpus(news)
-c.twitter <- corpus(twitter)
-
-c.all <- c.blogs + c.news + c.twitter
-
 ## Sampling and cleaning data
-sample.size <- as.integer(5000)
+if(test) {
+    blogs.sample <- sample(blogs, length(blogs) * sample.percent)
+    news.sample <- sample(news, length(news) * sample.percent)
+    twitter.sample <- sample(twitter, length(twitter) * sample.percent)
+} else {
+    blogs.sample <- blogs
+    news.sample <- news
+    twitter.sample <- twitter
+}
 
-blogs.sample <- sample(blogs, sample.size)
-news.sample <- sample(news, sample.size)
-twitter.sample <- sample(twitter, sample.size)
+blogs.sample <- cleandoc(blogs.sample)
+news.sample <- cleandoc(news.sample)
+twitter.sample <- cleandoc(twitter.sample)
+
+all.sample <- c(blogs.sample, news.sample, twitter.sample)
 
 c.blogs.sample <- corpus(blogs.sample)
 c.news.sample <- corpus(news.sample)
 c.twitter.sample <- corpus(twitter.sample)
 
+# free space
+# rm(blogs, news, twitter, blogs.sample, news.sample, twitter.sample)
+
 c.all.sample <- c.blogs.sample + c.news.sample + c.twitter.sample
 
-#trigrams <- tokenize(texts(c.all.sample), 
-#                    what = "word", 
-#                    removeNumbers = TRUE, 
-#                    removePunct = TRUE, 
-#                    removeSeparators = TRUE, 
-#                    ngrams = 3L,
-#                    concatenator = " ")
-
+# free space
+rm(c.blogs.sample, c.news.sample, c.twitter.sample)
+   
 dtm.sample.unigram <- dfm(c.all.sample)
 dtm.sample.bigram <- dfm(c.all.sample, ngrams = 2L, concatenator = " ")
 dtm.sample.trigram <- dfm(c.all.sample, ngrams = 3L, concatenator = " ")
+dtm.sample.fourgram <- dfm(c.all.sample, ngrams = 4L, concatenator = " ")
+dtm.sample.fivegram <- dfm(c.all.sample, ngrams = 5L, concatenator = " ")
 
-dtm.sample.unigram <- trim(dtm.sample.unigram, minCount = 10, minDoc = 1) 
-dtm.sample.bigram <- trim(dtm.sample.bigram, minCount = 3, minDoc = 1) 
-dtm.sample.trigram <- trim(dtm.sample.trigram, minCount = 2, minDoc = 1) 
+# free space
+rm(c.all.sample)
+
+#dtm.sample.unigram <- trim(dtm.sample.unigram, minCount = 10, minDoc = 1) 
+#dtm.sample.bigram <- trim(dtm.sample.bigram, minCount = 3, minDoc = 1) 
+#dtm.sample.trigram <- trim(dtm.sample.trigram, minCount = 2, minDoc = 1) 
+#dtm.sample.fourgram <- trim(dtm.sample.fourgram, minCount = 2, minDoc = 1) 
+#dtm.sample.fivegram <- trim(dtm.sample.fivegram, minCount = 2, minDoc = 1) 
 
 ### Prediction
 
-dtm.sample.unigram.sorted <- sort(dtm.sample.unigram, margin = "features")
-dtm.sample.bigram.sorted <- sort(dtm.sample.bigram, margin = "features")
-dtm.sample.trigram.sorted <- sort(dtm.sample.trigram, margin = "features")
+#dtm.sample.unigram <- sort(dtm.sample.unigram, margin = "features")
+#dtm.sample.bigram <- sort(dtm.sample.bigram, margin = "features")
+#dtm.sample.trigram <- sort(dtm.sample.trigram, margin = "features")
+#dtm.sample.fourgram <- sort(dtm.sample.fourgram, margin = "features")
+#dtm.sample.fivegram <- sort(dtm.sample.fivegram, margin = "features")
 
-uni.key <- features(dtm.sample.unigram.sorted)
-uni.word <- features(dtm.sample.unigram.sorted)
-uni.freq <- colSums(dtm.sample.unigram.sorted)
+freq.dt.uni <- data.table(Key = features(dtm.sample.unigram), 
+                          Word = features(dtm.sample.unigram), 
+                          Freq = docfreq(dtm.sample.unigram, 
+                                         scheme = "count"),
+                          key = c("Key", "Freq"))
+freq.dt.bi <- data.table(Key = getFirstWord(features(dtm.sample.bigram)), 
+                         Word = getLastWord(features(dtm.sample.bigram)), 
+                         Freq = docfreq(dtm.sample.bigram, 
+                                        scheme = "count"),
+                         key = c("Key", "Freq"))
+freq.dt.tri <- data.table(Key = getFirstTwoWords(features(dtm.sample.trigram)), 
+                          Word = getLastWord(features(dtm.sample.trigram)), 
+                          Freq = docfreq(dtm.sample.trigram, 
+                                         scheme = "count"),
+                          key = c("Key", "Freq"))
+freq.dt.four <- data.table(Key = getFirstThreeWords(features(dtm.sample.fourgram)), 
+                          Word = getLastWord(features(dtm.sample.fourgram)), 
+                          Freq = docfreq(dtm.sample.fourgram, 
+                                         scheme = "count"),
+                          key = c("Key", "Freq"))
+freq.dt.five <- data.table(Key = getFirstFourWords(features(dtm.sample.fivegram)), 
+                           Word = getLastWord(features(dtm.sample.fivegram)), 
+                           Freq = docfreq(dtm.sample.fivegram, 
+                                          scheme = "count"),
+                           key = c("Key", "Freq"))
 
-bi.key <- getFirstWord(features(dtm.sample.bigram.sorted))
-bi.word <- getLastWord(features(dtm.sample.bigram.sorted))
-bi.freq <- colSums(dtm.sample.bigram.sorted)
+setorder(freq.dt.uni, -Freq)
+setorder(freq.dt.bi, -Freq)
+setorder(freq.dt.tri, -Freq)
+setorder(freq.dt.four, -Freq)
+setorder(freq.dt.five, -Freq)
 
-tri.key <- getFirstTwoWords(features(dtm.sample.trigram.sorted))
-tri.word <- getLastWord(features(dtm.sample.trigram.sorted))
-tri.freq <- colSums(dtm.sample.trigram.sorted)
 
-freq.df.l <- list(unigram = data.frame(Key = factor(uni.key, 
-                                                    levels = unique(uni.key)), 
-                                       Word = factor(uni.word, 
-                                                     levels = unique(uni.word)), 
-                                       Freq = uni.freq),
-                  bigram = data.frame(Key = factor(bi.key, 
-                                                   levels = unique(bi.key)),
-                                      Word = factor(bi.word, 
-                                                    levels = unique(bi.word)), 
-                                      Freq = bi.freq),
-                  trigram = data.frame(Key = factor(tri.key, 
-                                                    levels = unique(tri.key)), 
-                                       Word = factor(tri.word, 
-                                                     levels = unique(tri.word)), 
-                                       Freq = tri.freq))
-
-freq.df.uni <- data.frame(Key = uni.key, 
-                          Word = uni.word, 
-                          Freq = uni.freq,
-                          Ngram = 1)
-freq.df.bi <- data.frame(Key = bi.key, 
-                          Word = bi.word, 
-                          Freq = bi.freq,
-                          Ngram = 2)
-freq.df.tri <- data.frame(Key = tri.key, 
-                          Word = tri.word, 
-                          Freq = tri.freq,
-                          Ngram = 3)
-
-freq.df <- rbind(freq.df.uni, freq.df.bi, freq.df.tri)
-
-## NEEDS TO BE OPTIMIZED
-# Think about dictionary encoding instead of grepping all the time
-predictWord <- function(phrase, ngram.df.l, n = 1) {
-    trigram.id <- grep(paste0("^", phrase, "$"), ngram.df.l$trigram$Key)
+predictWord1 <- function(phrase, uni, bi, tri, four, five, n = 1) {
+    # stupid protection from phrases with less then 4 words.
+    # need to be rewritten
+    dummy <- "<notaword> <notaword> <notaword> <notaword>"
+    phrase <- paste(dummy, phrase)
+    phrase.four <- getLastNWords(phrase, 4)
+    phrase.three <- getLastNWords(phrase, 3)
+    phrase.two <- getLastNWords(phrase, 2)
+    phrase.one <- getLastNWords(phrase, 1)
     predicted.id <- 1:n #which.max(prob)
-    if(length(trigram.id) > 0) {
-        print("trigram")
-        trigram.freq <- ngram.df.l$trigram$Freq[trigram.id]
-        bigram.id <- intersect(grep(paste0("^", getFirstWord(phrase), "$"), ngram.df.l$bigram$Key),
-                               grep(paste0("^", getLastWord(phrase), "$"), ngram.df.l$bigram$Word))
-        # frequency is not used now
-        bigram.freq <-  ngram.df.l$bigram$Freq[bigram.id]
-        # simple maximum likelihood probability, not used now
-        prob <- trigram.freq/bigram.freq
-        # since all structures are ordered, the best will be on the top
-        predicted.word <- ngram.df.l$trigram$Word[trigram.id[predicted.id]]
+    
+    fivegram.id <- which(phrase.four == five$Key)
+    if(length(fivegram.id) > 0) {
+        predicted.word <- five$Word[fivegram.id[predicted.id]]
     } else {
-        bigram.id <- grep(paste0("^", getLastWord(phrase), "$"), ngram.df.l$bigram$Key)
-        if(length(bigram.id) > 0) {
-            print("bigram")
-            # frequency is not used now
-            bigram.freq <- ngram.df.l$bigram$Freq[bigram.id]
+        fourgram.id <- which(phrase.three == four$Key)
+        if(length(fourgram.id) > 0) {
+     #       fourgram.freq <- tri$Freq[trigram.id]
+            #        bigram.id <- which(phrase.last == bi$Word)
+            #        bigram.freq <- bi$Freq[bigram.id]
             # since all structures are ordered, the best will be on the top
-            predicted.word <- ngram.df.l$bigram$Word[bigram.id[predicted.id]]
+            predicted.word <- four$Word[fourgram.id[predicted.id]]
         } else {
-            print("unigram")
-            unigram.id <- ngram.df.l$unigram$Key[1:n]
-            predicted.word <- ngram.df.l$unigram$Key[unigram.id[predicted.id]]
+            trigram.id <- which(phrase.two == tri$Key)
+            if(length(trigram.id) > 0) {
+    #            trigram.freq <- tri$Freq[trigram.id]
+        #        bigram.id <- which(phrase.last == bi$Word)
+        #        bigram.freq <- bi$Freq[bigram.id]
+                # since all structures are ordered, the best will be on the top
+                predicted.word <- tri$Word[trigram.id[predicted.id]]
+            } else {
+                bigram.id <- which(phrase.one == bi$Key)
+                if(length(bigram.id) > 0) {
+                    # frequency is not used now
+        #            bigram.freq <- bi$Freq[bigram.id]
+                    # since all structures are ordered, the best will be on the top
+                    predicted.word <- bi$Word[bigram.id[predicted.id]]
+                } else {
+                    unigram.id <- 1:n
+                    predicted.word <- uni$Word[unigram.id[predicted.id]]
+                }
+            }
         }
     }
     predicted.word
 }
 
-unigram.df <- freq.df[freq.df$Ngram == 1, ]
-bigram.df <- freq.df[freq.df$Ngram == 2, ]
-trigram.df <- freq.df[freq.df$Ngram == 3, ]
-
-predictWord1 <- function(phrase, uni, bi, tri, n = 1) {
-    phrase.first <- getFirstWord(phrase)
-    phrase.last <- getLastWord(phrase)
-    
-    trigram.id <- which(phrase == tri$Key)
+predictWord2 <- function(phrase, uni, bi, tri, four, five, n = 1) {
+    # stupid protection from phrases with less then 4 words.
+    # need to be rewritten
+    dummy <- "<notaword> <notaword> <notaword> <notaword>"
+    phrase <- paste(dummy, phrase)
+    phrase.four <- getLastNWords(phrase, 4)
+    phrase.three <- getLastNWords(phrase, 3)
+    phrase.two <- getLastNWords(phrase, 2)
+    phrase.one <- getLastNWords(phrase, 1)
     predicted.id <- 1:n #which.max(prob)
     
-    if(length(trigram.id) > 0) {
-        trigram.freq <- tri$Freq[trigram.id]
-        bigram.id <- which(phrase.last == bi$Word)
-        bigram.freq <- bi$Freq[bigram.id]
-        # since all structures are ordered, the best will be on the top
-        predicted.word <- tri$Word[trigram.id[predicted.id]]
-    } else {
-        bigram.id <- which(phrase.last == bi$Key)
-        if(length(bigram.id) > 0) {
-            # frequency is not used now
-            bigram.freq <- bi$Freq[bigram.id]
-            # since all structures are ordered, the best will be on the top
-            predicted.word <- bi$Word[bigram.id[predicted.id]]
-        } else {
-            unigram.id <- 1:n
-            predicted.word <- uni$Word[unigram.id[predicted.id]]
+    predicted.word <- five$Word[five$Key == phrase.four][predicted.id]
+    if(is.na(predicted.word[1])) {
+        predicted.word <- four$Word[four$Key == phrase.three][predicted.id]
+        if(is.na(predicted.word[1])) {
+            predicted.word <- tri$Word[tri$Key == phrase.two][predicted.id]
+            if(is.na(predicted.word[1])) {
+                predicted.word <- bi$Word[bi$Key == phrase.one][predicted.id]
+                if(is.na(predicted.word[1])){
+                    predicted.word <- uni$Word[predicted.id]
+                }
+            }
         }
     }
     predicted.word
@@ -175,29 +183,9 @@ predictWord1 <- function(phrase, uni, bi, tri, n = 1) {
 # predicted <- sapply(testset$pair, function(x) predictWord(x, ngram.df.l, 1))
 
 ###################
-predictWord("going to", freq.df.l, n = 1)
-predictWord1("going to", unigram.df, bigram.df, trigram.df, n = 1)
+predictWord1("going to be here", freq.dt.uni, freq.dt.bi, freq.dt.tri, freq.dt.four, freq.dt.five, n = 5)
 
 # REWRITE
-all.sample.test <- sample(all, sample.size)
-tm.all.sample.test <- Corpus(VectorSource(all.sample.test), readerControl = list(reader = readPlain, language = "en", load = TRUE))
 
-tm.all.sample.test <- tm_map(tm.all.sample.test, content_transformer(function(x){gsub("[^[:alnum:]['-]", " ", x)}))   
-tm.all.sample.test <- tm_map(tm.all.sample.test, removeNumbers)
-tm.all.sample.test <- tm_map(tm.all.sample.test, stripWhitespace)
-tm.all.sample.test <- tm_map(tm.all.sample.test, content_transformer(tolower))
-tm.all.sample.test <- tm_map(tm.all.sample.test, content_transformer(PlainTextDocument))
-###
-devtest <- lapply(tm.all.sample.test[1:100], function(x) splitStringToSet(x$content))
-testpairs <- sapply(devtest, function(x) x$pair)
-testpairs <- as.character(unlist(testpairs))
-testwords <- sapply(devtest, function(x) x$word)
-testwords <- as.character(unlist(testwords))
-###
-
-predicted <- sapply(testpairs, function(y) predictWord1(y, unigram.df, bigram.df, trigram.df, 1))
-predicted <- as.character(predicted)
-###
-table(testwords == predicted)
 
 
