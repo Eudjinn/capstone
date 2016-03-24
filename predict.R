@@ -159,26 +159,6 @@ freq.df.l <- list(unigram = data.frame(Term = factor(terms.l$unigram,
                                                      levels = terms.l$trigram), 
                                        Freq = freq.l$trigram))
 
-#### 3. How many unique words do you need in a frequency sorted dictionary to cover 50% of all word instances in the language? 90%?  
-# reusing data calculated in withSparseFreq section
-words.total <- sum(frequency)
-words.agg <- 0
-words.count <- 1
-
-while(words.agg < 0.5 * words.total) {
-    words.agg <- words.agg + frequency[words.count]
-    words.count <- words.count + 1
-}
-
-words.count50 <- words.count
-
-while(words.agg < 0.9 * words.total) {
-    words.agg <- words.agg + frequency[words.count]
-    words.count <- words.count + 1
-}
-
-words.count90 <- words.count
-
 ###
 ### Prediction
 
@@ -292,10 +272,17 @@ splitStringToSet <- function(s) {
 ###################
 predictWord("going to", freq.df.markov.l, n = 1)
 
-s <- docs.sample[[1]]$content[1]
+superpaste <- function(x) { 
+    s <- character()
+    for(i in 1:length(x)) {
+        s <- paste(s, x[i])
+    }
+    s
+}
+
+s <- supertaste(docs.sample[[1]]$content[1:10])
 devtest <- splitStringToSet(s)
 predicted <- sapply(devtest$pair, function(x) predictWord(x, freq.df.markov.l, 1))
 
-predicted 
-
 table(devtest$word == predicted)
+

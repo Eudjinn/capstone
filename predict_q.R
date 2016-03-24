@@ -37,70 +37,82 @@ if(test) {
 blogs.sample <- cleandoc(blogs.sample)
 news.sample <- cleandoc(news.sample)
 twitter.sample <- cleandoc(twitter.sample)
-
+##############################################
 all.sample <- c(blogs.sample, news.sample, twitter.sample)
 all.sample.length <- length(all.sample)
 train.p <- 0.7
+
 ## divide into training and test set
 inTrain <- sample(1:all.sample.length, all.sample.length * train.p)
 all.sample.train <- all.sample[inTrain]
 all.sample.test <- all.sample[-inTrain]
 
-# create corpus on training set
-c.all.sample.train <- corpus(all.sample.train)
+# pass vector of character documents
+trainTM <- function(t, trimFeatures = FALSE, smoothK = 1, ...) {
+    # create corpus on training set
+    c <- corpus(t)
+    # n-grams
+    dtm.l <- list(onegram = dfm(t),
+                  twogram = dfm(t, ngrams = 2L, concatenator = " "),
+                  threegram = dfm(t, ngrams = 3L, concatenator = " "),
+                  fourgram = dfm(t, ngrams = 4L, concatenator = " "),
+                  fivegram = dfm(t, ngrams = 5L, concatenator = " "))
 
-# n-grams
-dtm.sample.l <- list(onegram = dfm(c.all.sample.train),
-                     twogram = dfm(c.all.sample.train, ngrams = 2L, concatenator = " "),
-                     threegram = dfm(c.all.sample.train, ngrams = 3L, concatenator = " "),
-                     fourgram = dfm(c.all.sample.train, ngrams = 4L, concatenator = " "),
-                     fivegram = dfm(c.all.sample.train, ngrams = 5L, concatenator = " "))
+    if(trimFeatures) {
+        # trim rare terms
+        dtm.l.trimmed <- lapply(dtm.l, function(x) trim(x, minCount = 2, minDoc = 1))
+    }
+    ### Training
 
-# trim rare terms
-dtm.sample.l.t <- lapply(dtm.sample.l, function(x) trim(x, minCount = 2, minDoc = 1))
+    dt.l <- list(onegram = data.table(Key = features(dtm.l.trimmed$onegram), 
+                                      Word = features(dtm.l.trimmed$onegram), 
+                                      Freq = docfreq(dtm.l.trimmed$onegram, 
+                                                     scheme = "count")),
+                 twogram = data.table(Key = getFirstNWords(features(dtm.l.trimmed$twogram), 1), 
+                                      Word = getLastNWords(features(dtm.l.trimmed$twogram), 1), 
+                                      Freq = docfreq(dtm.l.trimmed$twogram, 
+                                                     scheme = "count")),
+                 threegram = data.table(Key = getFirstNWords(features(dtm.l.trimmed$threegram), 2), 
+                                        Word = getLastNWords(features(dtm.l.trimmed$threegram), 1), 
+                                        Freq = docfreq(dtm.l.trimmed$threegram, 
+                                                       scheme = "count")),
+                 fourgram = data.table(Key = getFirstNWords(features(dtm.l.trimmed$fourgram), 3), 
+                                       Word = getLastNWords(features(dtm.l.trimmed$fourgram), 1), 
+                                       Freq = docfreq(dtm.l.trimmed$fourgram, 
+                                                      scheme = "count")),
+                 fivegram = data.table(Key = getFirstNWords(features(dtm.l.trimmed$fivegram), 4), 
+                                        Word = getLastNWords(features(dtm.l.trimmed$fivegram), 1), 
+                                        Freq = docfreq(dtm.l.trimmed$fivegram, 
+                                                       scheme = "count")))
+    # add smoothing
+    Voc.size <- nrow(dt.l$onegram)
 
-### Prediction
-
-dt.l <- list(onegram = data.table(Key = features(dtm.sample.l.t$onegram), 
-                                  Word = features(dtm.sample.l.t$onegram), 
-                                  Freq = docfreq(dtm.sample.l.t$onegram, 
-                                                 scheme = "count")),
-             twogram = data.table(Key = getFirstNWords(features(dtm.sample.l.t$twogram), 1), 
-                                  Word = getLastNWords(features(dtm.sample.l.t$twogram), 1), 
-                                  Freq = docfreq(dtm.sample.l.t$twogram, 
-                                                 scheme = "count")),
-             threegram = data.table(Key = getFirstNWords(features(dtm.sample.l.t$threegram), 2), 
-                                    Word = getLastNWords(features(dtm.sample.l.t$threegram), 1), 
-                                    Freq = docfreq(dtm.sample.l.t$threegram, 
-                                                   scheme = "count")),
-             fourgram = data.table(Key = getFirstNWords(features(dtm.sample.l.t$fourgram), 3), 
-                                   Word = getLastNWords(features(dtm.sample.l.t$fourgram), 1), 
-                                   Freq = docfreq(dtm.sample.l.t$fourgram, 
-                                                  scheme = "count")),
-             fivegram = data.table(Key = getFirstNWords(features(dtm.sample.l.t$fivegram), 4), 
-                                    Word = getLastNWords(features(dtm.sample.l.t$fivegram), 1), 
-                                    Freq = docfreq(dtm.sample.l.t$fivegram, 
-                                                   scheme = "count")))
-# add smoothing
-smooth.one <- function(dt, k = 1, v = 5) {
-    dt[, Prob := ((Freq + k)/(sum(Freq) + v))]
-    setkey(dt, Key)
+    smooth.one <- function(dt, k = 1, V) {
+        N <- sum(dt$Freq)
+    
+        dt[, Prob := (Freq + k)/(N + k*V)]
+        dt[, FreqSmooth := Prob * N]
+        setkey(dt, Key)
+    }
+    
+    smooth.n <- function(dt, k = 1, V) {
+        setkey(dt, Key)
+        dt[, Prob := (Freq + k)/(sum(Freq) + k*V), by = Key]
+        dt[, FreqSmooth := Prob * sum(Freq), by = Key]
+        setkey(dt, Key)
+    }
+    
+    smooth.one(dt.l$onegram, k = smoothK, V = Voc.size)
+    smooth.n(dt.l$twogram, k = smoothK, V = Voc.size)
+    smooth.n(dt.l$threegram, k = smoothK, V = Voc.size)
+    smooth.n(dt.l$fourgram, k = smoothK, V = Voc.size)
+    smooth.n(dt.l$fivegram, k = smoothK, V = Voc.size)
+    
+    fit <- list(dtm.original = dtm.l,
+                dtm.trimmed = dtm.l.trimmed,
+                dt = dt.l)
+    fit
 }
-
-smooth.n <- function(dt, k = 1, v = 5) {
-    setkey(dt, Key)
-    dt[, Prob := ((Freq + k)/(sum(Freq) + v)), by = Key]
-    setkey(dt, Key)
-}
-
-smooth.one(dt.l$onegram, k = 1, v = 5)
-smooth.n(dt.l$twogram, k = 1, v = 5)
-smooth.n(dt.l$threegram, k = 1, v = 5)
-smooth.n(dt.l$fourgram, k = 1, v = 5)
-smooth.n(dt.l$fivegram, k = 1, v = 5)
-
-# calc probability of each word within the group (i.e. fivegram/fourgram)
-# freq.dt.five[, Freq/sum(Freq), by = Key]
 
 predictWord3 <- function(phrase, one, two, three, four, five, n = 1) {
     # stupid protection from phrases with less then 4 words.
@@ -129,11 +141,40 @@ predictWord3 <- function(phrase, one, two, three, four, five, n = 1) {
     predicted.word
 }
 
+predictTM <- function(model, phrase, n = 1) {
+    # stupid protection from phrases with less then 4 words.
+    # need to be rewritten
+    dummy <- "<notaword> <notaword> <notaword> <notaword>"
+    phrase <- paste(dummy, phrase)
+    phrase.four <- getLastNWords(phrase, 4)
+    phrase.three <- getLastNWords(phrase, 3)
+    phrase.two <- getLastNWords(phrase, 2)
+    phrase.one <- getLastNWords(phrase, 1)
+    predicted.id <- 1:n #which.max(prob)
+    
+    predicted.word <- model$dt$fivegram[phrase.four, Word, Prob][order(-Prob)][predicted.id]
+    if(is.na(predicted.word$Word[1])) {
+        predicted.word <- model$dt$fourgram[phrase.three, Word, Prob][order(-Prob)][predicted.id]
+        if(is.na(predicted.word$Word[1])) {
+            predicted.word <- model$dt$threegram[phrase.two, Word, Prob][order(-Prob)][predicted.id]
+            if(is.na(predicted.word$Word[1])) {
+                predicted.word <- model$dt$twogram[phrase.one, Word, Prob][order(-Prob)][predicted.id]
+                if(is.na(predicted.word$Word[1])){
+                    predicted.word <- model$dt$onegram[, Word, Prob][order(-Prob)][predicted.id] 
+                }
+            }
+        }
+    }
+    predicted.word
+}
+
 # predicted <- sapply(testset$pair, function(x) predictWord(x, ngram.df.l, 1))
 
 ###################
-predictWord2("going to be here", dt.l$one, dt.l$two, dt.l$three, dt.l$four, dt.l$five, n = 5)
-predictWord3("going to be here", dt.l$one, dt.l$two, dt.l$three, dt.l$four, dt.l$five, n = 1)
+
+fit <- trainTM(all.sample.train, trimFeatures = TRUE, smoothK = 1)
+
+predictTM(fit, "going to be here", n = 1)
 
 # REWRITE
 
