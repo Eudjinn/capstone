@@ -78,16 +78,15 @@ removeFirstNWords <- function(s, n = 1) {
 splitStringToSet <- function(s, n = 2) {
     triples <- list()
     triple <- triples
-    len <- stri_count_words(s)
-    while(len > n) {
-        ngram <- getFirstNWords(s, n + 1)
-        key <- getFirstNWords(ngram, n)
-        triple$key <- c(triple$key, key)
+    words <- unlist(strsplit(s, " "))
+    pos <- 1
+    len <- length(words)
+    while((len - pos + 1) > n) {
+        triple$key <- c(triple$key, paste(words[pos : (pos + n - 1)], collapse = " "))
         # get the word
-        triple$word <- c(triple$word, getLastNWords(ngram, 1))
+        triple$word <- c(triple$word, words[(pos + n)])
         # move the window by one word
-        s <- removeFirstNWords(s, 1)
-        len <- len - 1
+        pos <- pos + 1
     }
     triples <- c(triples, triple)
     triples
@@ -105,10 +104,50 @@ cleandoc <- function(doc) {
     # fix '
     doc <- gsub("’", "'", doc)
     doc <- iconv(doc, "UTF-8", "ascii", sub = " ")
-    #    doc <- gsub("[.?!]", "<EOS>", doc)
-    doc <- gsub("[^[:alnum:]['-]", " ", doc)
-    doc <- gsub(" - |- | -| {2,}", " ", doc)
+
+    doc <- tolower(doc)
+    doc <- gsub("a\\.m\\. ", " am ", doc)
+    doc <- gsub("p\\.m\\. ", " pm ", doc)
+    doc <- gsub(" u\\.s\\. ", " usa ", doc)
+    doc <- gsub(" i\\.e\\. ", " ie ", doc)
+    doc <- gsub(" e\\.g\\. ", " eg ", doc)
+    doc <- gsub(" etc\\. ", " etc ", doc)
+
+    # remove all sorts of numeric values
+    doc <- gsub("[$]?[+-]?[0-9]{1,}(?:[0-9]*(?:[.,][0-9]{1,})?|(?:,[0-9]{1,})*(?:\\.[0-9]{1,})?|(?:\\.[0-9]{1,})*(?:,[0-9]{1,})?)[+%]?", " ", doc)
+    # remove numbers
+    doc <- gsub("[0-9]+", " ", doc)
+
+    # remove multiple dashes
+    doc <- gsub("-{2,}", "", doc)
+    # remove standalone dashes
+    doc <- gsub(" - ", " ", doc)
+    doc <- gsub(" -", " ", doc)
+    doc <- gsub("- ", " ", doc)
+
+    doc <- gsub("[\\(\\),:><\\+]", " ", doc)
+    doc <- gsub("[><\\+]", "", doc)
+    
+    #end of string !.? replace with e-e-e-e-e
+    doc <- gsub("[?!.]+$", " ", doc) # instead of e-e-e-e-e so far
+#    doc <- gsub("[?!.]+$", " e-e-e-e-e", doc)
+    # replace !.? with s-s-s-s-s e-e-e-e-e, treating multiple as one in the middle too.
+    doc <- gsub("[?.!]+", " ", doc) # instead of e-e-e-e-e so far
+#    doc <- gsub("[?.!]+", " s-s-s-s-s e-e-e-e-e ", doc)
+    
+#    doc <- gsub("^", "s-s-s-s-s ", doc)
+#    doc <- gsub("$", " e-e-e-e-e", doc)
+
+    # collapse spaces in one space
+    doc <- gsub("[[:space:]]{2,}", " ", doc)
+    # remove spaces in the beginning and at the end
     doc <- gsub("^ | $", "", doc)
+
+    # collapse duplicated e-e-e-e-e which happens when end of sentence and end of line
+ #   doc <- gsub(" e-e-e-e-e e-e-e-e-e$", " e-e-e-e-e", doc)
+        
+    # replace all the unusual chars with space except '-<>
+    doc <- gsub("[^[:alnum:]['-<>]", " ", doc)
     
     doc
 }
