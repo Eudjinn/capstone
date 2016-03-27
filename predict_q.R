@@ -53,24 +53,35 @@ trainTM <- function(t, trimFeatures = FALSE, smoothK = 1, ...) {
 
     dt.l <- list(onegram = data.table(Key = features(dtm.l$onegram), 
                                       Word = features(dtm.l$onegram), 
-                                      Freq = docfreq(dtm.l$onegram, 
-                                                     scheme = "count")),
+#                                      Freq = docfreq(dtm.l$onegram, 
+#                                                     scheme = "count")),
+                                      Freq = colSums(dtm.l$onegram)),
+
                  twogram = data.table(Key = getFirstNWords(features(dtm.l$twogram), 1), 
                                       Word = getLastNWords(features(dtm.l$twogram), 1), 
-                                      Freq = docfreq(dtm.l$twogram, 
-                                                     scheme = "count")),
+#                                      Freq = docfreq(dtm.l$twogram, 
+#                                                     scheme = "count")),
+                                        Freq = colSums(dtm.l$twogram)),
+
                  threegram = data.table(Key = getFirstNWords(features(dtm.l$threegram), 2), 
                                         Word = getLastNWords(features(dtm.l$threegram), 1), 
-                                        Freq = docfreq(dtm.l$threegram, 
-                                                       scheme = "count")),
+#                                        Freq = docfreq(dtm.l$threegram, 
+#                                                       scheme = "count")),
+                                        Freq = colSums(dtm.l$threegram)), 
+
                  fourgram = data.table(Key = getFirstNWords(features(dtm.l$fourgram), 3), 
                                        Word = getLastNWords(features(dtm.l$fourgram), 1), 
-                                       Freq = docfreq(dtm.l$fourgram, 
-                                                      scheme = "count")),
+#                                       Freq = docfreq(dtm.l$fourgram, 
+#                                                      scheme = "count")),
+                                        Freq = colSums(dtm.l$fourgram)), 
+
                  fivegram = data.table(Key = getFirstNWords(features(dtm.l$fivegram), 4), 
                                         Word = getLastNWords(features(dtm.l$fivegram), 1), 
-                                        Freq = docfreq(dtm.l$fivegram, 
-                                                       scheme = "count")))
+#                                        Freq = docfreq(dtm.l$fivegram, 
+#                                                       scheme = "count")))
+                                        Freq = colSums(dtm.l$fivegram))) 
+
+
     # EXPERIMENTAL: Remove starts and ends from tables:
     dt.l$twogram <- dt.l$twogram[-grep("ss-ss|ee-ee", dt.l$twogram$Key)]
     dt.l$twogram <- dt.l$twogram[-grep("ss-ss|ee-ee", dt.l$twogram$Word)]

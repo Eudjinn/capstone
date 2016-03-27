@@ -11,6 +11,18 @@ quiz2 <- function() {
         predictTM(fit, "Be grateful for the good times and keep the faith during the", n = 5),
         predictTM(fit, "If this isn't the cutest thing you've ever seen, then you must be", n = 5))
     )
+    predictedbo <- data.table(rbind(
+        predictTMbo(fit, "The guy in front of me just bought a pound of bacon, a bouquet, and a case of", n = 5, a = c(0.01,0.4,0.4,0.4,1)),
+        predictTMbo(fit, "You're the reason why I smile everyday. Can you follow me please? It would mean the", n = 5, a = c(0.01,0.4,0.4,0.4,1)),
+        predictTMbo(fit, "Hey sunshine, can you follow me and make me the", n = 5, a = c(0.01,0.4,0.4,0.4,1)),
+        predictTMbo(fit, "Very early observations on the Bills game: Offense still struggling but the", n = 5, a = c(0.01,0.4,0.4,0.4,1)),
+        predictTMbo(fit, "Go on a romantic date at the", n = 5),
+        predictTMbo(fit, "Well I'm pretty sure my granny has some old bagpipes in her garage I'll dust them off and be on my", n = 5, a = c(0.01,0.4,0.4,0.4,1)),
+        predictTMbo(fit, "Ohhhhh #PointBreak is on tomorrow. Love that film and haven't seen it in quite some", n = 5, a = c(0.01,0.4,0.4,0.4,1)),
+        predictTMbo(fit, "After the ice bucket challenge Louis will push his long wet hair out of his eyes with his little", n = 5, a = c(0.01,0.4,0.4,0.4,1)),
+        predictTMbo(fit, "Be grateful for the good times and keep the faith during the", n = 5, a = c(0.01,0.4,0.4,0.4,1)),
+        predictTMbo(fit, "If this isn't the cutest thing you've ever seen, then you must be", n = 5, a = c(0.01,0.4,0.4,0.4,1)))
+    )
     probs <- data.table(rbind(
         probTM(fit, "The guy in front of me just bought a pound of bacon, a bouquet, and a case of", "pretzels"),
         probTM(fit, "The guy in front of me just bought a pound of bacon, a bouquet, and a case of", "beer"),
@@ -62,7 +74,8 @@ quiz2 <- function() {
         probTM(fit, "If this isn't the cutest thing you've ever seen, then you must be", "insane"),
         probTM(fit, "If this isn't the cutest thing you've ever seen, then you must be", "callous"))
     )
-    result <- list(predicted = predicted, 
+    result <- list(predicted = predicted,
+                   predictedbo = predictedbo,
                    probs = probs)
     result
 }

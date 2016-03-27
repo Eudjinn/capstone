@@ -11,7 +11,7 @@ library(tm)
 # options 
 options(mc.cores = max(1, detectCores()))
 # number of rows from original docs to use
-sample.percent <- 0.1
+sample.percent <- 0.5
 # proportion of training set
 train.percent <- 0.7
 
@@ -36,7 +36,7 @@ inTrain <- sample(1:samplelength, samplelength * train.percent)
 train <- cleansample[inTrain]
 test <- cleansample[-inTrain]
 
-fit <- trainTM(train, trimFeatures = FALSE, smoothK = 1)
+fit <- trainTM(train, trimFeatures = TRUE, smoothK = 1)
 
 # remove end of sentence chars after model was trained.
 train <- cleanEnds(train)
