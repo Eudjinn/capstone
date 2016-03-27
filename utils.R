@@ -108,11 +108,12 @@ cleandoc <- function(doc) {
     doc <- tolower(doc)
     doc <- gsub("a\\.m\\. ", " am ", doc)
     doc <- gsub("p\\.m\\. ", " pm ", doc)
-    doc <- gsub(" u\\.s\\. ", " usa ", doc)
-    doc <- gsub(" i\\.e\\. ", " ie ", doc)
-    doc <- gsub(" e\\.g\\. ", " eg ", doc)
-    doc <- gsub(" etc\\. ", " etc ", doc)
-
+    doc <- gsub("u\\.s\\. ", " usa ", doc)
+    doc <- gsub("i\\.e\\. ", " ie ", doc)
+    doc <- gsub("e\\.g\\. ", " eg ", doc)
+    doc <- gsub("etc\\. ", " etc ", doc)
+    doc <- gsub("d\\.c\\. ", " dc ", doc)
+    
     # remove all sorts of numeric values
     doc <- gsub("[$]?[+-]?[0-9]{1,}(?:[0-9]*(?:[.,][0-9]{1,})?|(?:,[0-9]{1,})*(?:\\.[0-9]{1,})?|(?:\\.[0-9]{1,})*(?:,[0-9]{1,})?)[+%]?", " ", doc)
     # remove numbers
@@ -124,30 +125,67 @@ cleandoc <- function(doc) {
     doc <- gsub(" - ", " ", doc)
     doc <- gsub(" -", " ", doc)
     doc <- gsub("- ", " ", doc)
-
+    # remove hash
+    doc <- gsub("#", "", doc)
+    
     doc <- gsub("[\\(\\),:><\\+]", " ", doc)
     doc <- gsub("[><\\+]", "", doc)
+
+    # collapse double apostropes in one space
+    doc <- gsub("[']{2,}", " ", doc)
     
-    #end of string !.? replace with e-e-e-e-e
-    doc <- gsub("[?!.]+$", " ", doc) # instead of e-e-e-e-e so far
-#    doc <- gsub("[?!.]+$", " e-e-e-e-e", doc)
-    # replace !.? with s-s-s-s-s e-e-e-e-e, treating multiple as one in the middle too.
-    doc <- gsub("[?.!]+", " ", doc) # instead of e-e-e-e-e so far
-#    doc <- gsub("[?.!]+", " s-s-s-s-s e-e-e-e-e ", doc)
+#---------        
+    # remove the dot in the beginning of the string
+    doc <- gsub("^[?!.;] ?", "", doc) 
     
-#    doc <- gsub("^", "s-s-s-s-s ", doc)
-#    doc <- gsub("$", " e-e-e-e-e", doc)
+    # replace !.?; with ". ", treating multiple as one in the middle too.
+    doc <- gsub("( ?[?!.;]+ ?)+", ". ", doc) 
+
+#    doc <- gsub("^", "ss-ss ", doc)
+#    doc <- gsub("$", " ee-ee", doc)
+#---------
+    
+    # replace all the unusual chars with space except '-<>
+    doc <- gsub("[^[:alnum:]['-<>?!]", " ", doc)
 
     # collapse spaces in one space
     doc <- gsub("[[:space:]]{2,}", " ", doc)
     # remove spaces in the beginning and at the end
     doc <- gsub("^ | $", "", doc)
+    
+    doc
+}
 
-    # collapse duplicated e-e-e-e-e which happens when end of sentence and end of line
- #   doc <- gsub(" e-e-e-e-e e-e-e-e-e$", " e-e-e-e-e", doc)
-        
-    # replace all the unusual chars with space except '-<>
-    doc <- gsub("[^[:alnum:]['-<>]", " ", doc)
+addtags <- function(doc, keylen = 4) {
+    #end of string !.? replace with ee-ee
+    e <- paste(rep(" ee-ee", keylen), collapse = "")
+    s <- paste(rep("ss-ss ", keylen), collapse = "")
+    es <- paste(e,s, collapse = "")
+    doc <- gsub("[?!.;]+$", e, doc)
+    # replace !.? with ee-ee ss-ss, treating multiple as one in the middle too.
+    doc <- gsub("[?.!;]+", es, doc)
+    
+    doc <- gsub("^", s, doc)
+    doc <- gsub("$", e, doc)
+
+    # collapse duplicated ee-ee which happens when end of sentence and end of line
+    eepattern <- paste0(e, e, "$", collapse = "")
+    doc <- gsub(eepattern, e, doc)
+    
+    # collapse spaces in one space
+    doc <- gsub("[[:space:]]{2,}", " ", doc)
+    
+    doc
+}
+
+cleanEnds <- function(doc) {
+    # replace !.? with " "
+    doc <- gsub("[?.!;]+", " ", doc)
+    
+    # collapse spaces in one space
+    doc <- gsub("[[:space:]]{2,}", " ", doc)
+    # remove spaces in the beginning and at the end
+    doc <- gsub("^ | $", "", doc)
     
     doc
 }

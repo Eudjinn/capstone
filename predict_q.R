@@ -1,7 +1,6 @@
 ###############
 ## Loading data
-readData <- function()
-{
+readData <- function() {
     blogs <- readLines("final/en_US/en_US.blogs.txt", encoding = "UTF-8", skipNul = TRUE)
 #    news <- readLines("final/en_US/en_US.news.txt", encoding = "UTF-8", skipNul = TRUE)
 #    twitter <- readLines("final/en_US/en_US.twitter.txt", encoding = "UTF-8", skipNul = TRUE)
@@ -12,31 +11,39 @@ readData <- function()
 }
 
 ## Sampling
-getSample <- function(text, sample.p = 0.01)
-{
+getSample <- function(text, sample.p = 0.01) {
     text.length <- length(text)
     sampletext <- text[sample(1:text.length, text.length * sample.p)]
     sampletext
 }
 
 ## cleaning
-cleanData <- function(textdata)
-{
+cleanData <- function(textdata) {
     textdata <- cleandoc(textdata)
     textdata
+}
+
+addTags <- function(textdata, keylen = 4) {  
+    textdata <- addtags(textdata, keylen)
 }
 
 # pass vector of character documents
 trainTM <- function(t, trimFeatures = FALSE, smoothK = 1, ...) {
     require(quanteda)
+    # add tags for tokenizing
+    t.one <- t
+    t.two <- addTags(t, keylen = 1)
+    t.three <- addTags(t, keylen = 2)
+    t.four <- addTags(t, keylen = 3)
+    t.five <- addTags(t, keylen = 4)
     # create corpus on training set
     c <- corpus(t)
     # n-grams
-    dtm.l <- list(onegram = dfm(t),
-                  twogram = dfm(t, ngrams = 2L, concatenator = " "),
-                  threegram = dfm(t, ngrams = 3L, concatenator = " "),
-                  fourgram = dfm(t, ngrams = 4L, concatenator = " "),
-                  fivegram = dfm(t, ngrams = 5L, concatenator = " "))
+    dtm.l <- list(onegram = dfm(t.one),
+                  twogram = dfm(t.two, ngrams = 2L, concatenator = " "),
+                  threegram = dfm(t.three, ngrams = 3L, concatenator = " "),
+                  fourgram = dfm(t.four, ngrams = 4L, concatenator = " "),
+                  fivegram = dfm(t.five, ngrams = 5L, concatenator = " "))
 
     if(trimFeatures) {
         # trim rare terms
@@ -64,6 +71,16 @@ trainTM <- function(t, trimFeatures = FALSE, smoothK = 1, ...) {
                                         Word = getLastNWords(features(dtm.l$fivegram), 1), 
                                         Freq = docfreq(dtm.l$fivegram, 
                                                        scheme = "count")))
+    # EXPERIMENTAL: Remove starts and ends from tables:
+    dt.l$twogram <- dt.l$twogram[-grep("ss-ss|ee-ee", dt.l$twogram$Key)]
+    dt.l$twogram <- dt.l$twogram[-grep("ss-ss|ee-ee", dt.l$twogram$Word)]
+    dt.l$threegram <- dt.l$threegram[-grep("ss-ss|ee-ee", dt.l$threegram$Key)]
+    dt.l$threegram <- dt.l$threegram[-grep("ss-ss|ee-ee", dt.l$threegram$Word)]
+    dt.l$fourgram <- dt.l$fourgram[-grep("ss-ss|ee-ee", dt.l$fourgram$Key)]
+    dt.l$fourgram <- dt.l$fourgram[-grep("ss-ss|ee-ee", dt.l$fourgram$Word)]
+    dt.l$fivegram <- dt.l$fivegram[-grep("ss-ss|ee-ee", dt.l$fivegram$Key)]
+    dt.l$fivegram <- dt.l$fivegram[-grep("ss-ss|ee-ee", dt.l$fivegram$Word)]
+    
     # add smoothing
     voc.size <- nrow(dt.l$onegram)
 
@@ -117,7 +134,8 @@ predictTM <- function(model, phrase, n = 1) {
             }
         }
     }
-    cbind(phrase.four, predicted.word)
+#    predicted.word
+    predicted.word$Word
 }
 
 predictTMbo <- function(model, phrase, n = 1, a = c(1, 1, 1, 1, 1)) {
@@ -162,7 +180,7 @@ predictTMbo <- function(model, phrase, n = 1, a = c(1, 1, 1, 1, 1)) {
     
     predicted.word <- predicted.word[!is.na(BOProb)][order(-BOProb)][predicted.id]
 
-    cbind(phrase.four, predicted.word)
+    predicted.word$Word
 }
 
 probTM <- function(model, phrase, word) {
