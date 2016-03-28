@@ -40,7 +40,7 @@ testTM <- function(model, testlist, maxitems, n = 1, a = NULL) {
         equal <- (equal | testwords == predicted[, i])
     }
     matches <- table(equal)
-    result <- list(predictions <- cbind(testpairs, 
+    result <- list(predictions = cbind(testpairs, 
                                         testwords, 
                                         predicted,
                                         equal),

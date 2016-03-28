@@ -80,5 +80,59 @@ quiz2 <- function() {
     result
 }
 
+quiz2s <- function(n = 3, a = c(0.01, 0.1, 0.1, 0.1, 1)) {
+
+    testpairs <- c("and a case of",
+                   "it would mean the",
+                   "and make me the",
+                   "still struggling but the",
+                   "romantic date at the",
+                   "and be on my",
+                   "it in quite some",
+                   "eyes with his little",
+                   "the faith during the",
+                   "then you must be")
+
+    testwords <- c("beer",
+                   "world",
+                   "happiest",
+                   "defense",
+                   "beach",
+                   "way",
+                   "time",
+                   "fingers",
+                   "bad",
+                   "insane")
+    
+    nitems <- length(testwords)
+        
+    if(is.null(a))
+        predicted <- sapply(testpairs, 
+                            function(y) predictTM(fit, y, n))
+    else if(length(a) == 5)
+        predicted <- sapply(testpairs, 
+                            function(y) predictTMbo(fit, y, n, a))
+    
+    predicted <- t(as.matrix(predicted, n))
+    predicted[is.na(predicted)] <- "<unk>"
+    
+    rownames(testpairs) <- NULL
+    rownames(testwords) <- NULL
+    rownames(predicted) <- NULL
+    
+    equal <- logical(nitems)
+    for (i in 1:n) {
+        equal <- (equal | testwords == predicted[, i])
+    }
+    matches <- table(equal)
+    result <- list(predictions = cbind(testpairs, 
+                                       testwords, 
+                                       predicted,
+                                       equal),
+                   matches = matches,
+                   accuracy = matches["TRUE"]/(matches["TRUE"] + matches["FALSE"]))
+    result
+}
+
 # ordered results
 # answers$probs[, .(phrase.four, Word, Prob)][order(phrase.four, -Prob)]
