@@ -21,38 +21,42 @@ getLastNWordsPattern <- function(n = 1) {
 
 getFirstNWords <- function(s, n = 1) {
     #    stri_extract_first(s, regex = "^[a-z]* [a-z]* [a-z]* [a-z]*")
-    pattern <- "^[^ ]*"
-    if(n == 2) 
-        pattern <- "^[^ ]* [^ ]*"
-    else if(n == 3) 
-        pattern <- "^[^ ]* [^ ]* [^ ]*"
-    else if(n == 4) 
-        pattern <- "^[^ ]* [^ ]* [^ ]* [^ ]*"
-    else if(n == 5) 
-        pattern <- "^[^ ]* [^ ]* [^ ]* [^ ]* [^ ]*"
-    else if(n > 5) {
-        pattern <- getFirstNWordsPattern(n)
-    }
-    
-    stri_extract_first(s, regex = pattern)
+    if(n > 0) {
+        pattern <- "^[^ ]*"
+        if(n == 2) 
+            pattern <- "^[^ ]* [^ ]*"
+        else if(n == 3) 
+            pattern <- "^[^ ]* [^ ]* [^ ]*"
+        else if(n == 4) 
+            pattern <- "^[^ ]* [^ ]* [^ ]* [^ ]*"
+        else if(n == 5) 
+            pattern <- "^[^ ]* [^ ]* [^ ]* [^ ]* [^ ]*"
+        else if(n > 5) {
+            pattern <- getFirstNWordsPattern(n)
+        }
+        stri_extract_first(s, regex = pattern)
+    } else 
+        s
 }
 
 getLastNWords <- function(s, n = 1) {
     #    stri_extract_first(s, regex = "[a-z]*$")
-    pattern <- "[^ ]*$"
-    if(n == 2) 
-        pattern <- "[^ ]* [^ ]*$"
-    else if(n == 3) 
-        pattern <- "[^ ]* [^ ]* [^ ]*$"
-    else if(n == 4) 
-        pattern <- "[^ ]* [^ ]* [^ ]* [^ ]*$"
-    else if(n == 5) 
-        pattern <- "[^ ]* [^ ]* [^ ]* [^ ]* [^ ]*$"
-    else if(n > 5) {
-        pattern <- getLastNWordsPattern(n)
-    }
-
-    stri_extract_first(s, regex = pattern)
+    if(n > 0) {
+        pattern <- "[^ ]*$"
+        if(n == 2) 
+            pattern <- "[^ ]* [^ ]*$"
+        else if(n == 3) 
+            pattern <- "[^ ]* [^ ]* [^ ]*$"
+        else if(n == 4) 
+            pattern <- "[^ ]* [^ ]* [^ ]* [^ ]*$"
+        else if(n == 5) 
+            pattern <- "[^ ]* [^ ]* [^ ]* [^ ]* [^ ]*$"
+        else if(n > 5) {
+            pattern <- getLastNWordsPattern(n)
+        }
+        stri_extract_first(s, regex = pattern)
+    } else
+        s
 }
 
 removeFirstNWords <- function(s, n = 1) {
@@ -75,20 +79,26 @@ removeFirstNWords <- function(s, n = 1) {
 }
 
 # n = key length (ngram is key + word)
-splitStringToSet <- function(s, n = 2) {
+splitStringToSet <- function(s, ngrams = 5) {
     triples <- list()
-    triple <- triples
-    words <- unlist(strsplit(s, " "))
-    pos <- 1
-    len <- length(words)
-    while((len - pos + 1) > n) {
-        triple$key <- c(triple$key, paste(words[pos : (pos + n - 1)], collapse = " "))
-        # get the word
-        triple$word <- c(triple$word, words[(pos + n)])
-        # move the window by one word
-        pos <- pos + 1
-    }
+    if(ngrams > 1)
+    {
+        n <- ngrams - 1
+        triple <- triples
+        words <- unlist(strsplit(s, " "))
+        pos <- 1
+        len <- length(words)
+        while((len - pos + 1) > n) {
+            triple$key <- c(triple$key, paste(words[pos : (pos + n - 1)], collapse = " "))
+            # get the word
+            triple$word <- c(triple$word, words[(pos + n)])
+            # move the window by one word
+            pos <- pos + 1
+        }
     triples <- c(triples, triple)
+    } else {
+        print("ngrams cannot be less than 2")
+    }
     triples
 }
 
@@ -156,25 +166,28 @@ cleandoc <- function(doc) {
     doc
 }
 
-addtags <- function(doc, keylen = 4) {
-    #end of string !.? replace with ee-ee
-    e <- paste(rep(" ee-ee", keylen), collapse = "")
-    s <- paste(rep("ss-ss ", keylen), collapse = "")
-    es <- paste(e,s, collapse = "")
-    doc <- gsub("[?!.;]+$", e, doc)
-    # replace !.? with ee-ee ss-ss, treating multiple as one in the middle too.
-    doc <- gsub("[?.!;]+", es, doc)
+addtags <- function(doc, ngrams = 5) {
+    if(ngrams > 1)
+    {
+        keylen <- ngrams - 1
+        #end of string !.? replace with ee-ee
+        e <- paste(rep(" ee-ee", keylen), collapse = "")
+        s <- paste(rep("ss-ss ", keylen), collapse = "")
+        es <- paste(e,s, collapse = "")
+        doc <- gsub("[?!.;]+$", e, doc)
+        # replace !.? with ee-ee ss-ss, treating multiple as one in the middle too.
+        doc <- gsub("[?.!;]+", es, doc)
+        
+        doc <- gsub("^", s, doc)
+        doc <- gsub("$", e, doc)
     
-    doc <- gsub("^", s, doc)
-    doc <- gsub("$", e, doc)
-
-    # collapse duplicated ee-ee which happens when end of sentence and end of line
-    eepattern <- paste0(e, e, "$", collapse = "")
-    doc <- gsub(eepattern, e, doc)
-    
-    # collapse spaces in one space
-    doc <- gsub("[[:space:]]{2,}", " ", doc)
-    
+        # collapse duplicated ee-ee which happens when end of sentence and end of line
+        eepattern <- paste0(e, e, "$", collapse = "")
+        doc <- gsub(eepattern, e, doc)
+        
+        # collapse spaces in one space
+        doc <- gsub("[[:space:]]{2,}", " ", doc)
+    }    
     doc
 }
 

@@ -1,11 +1,11 @@
-makeTestList <- function(testset, maxdocs) {
+makeTestList <- function(testset, maxdocs, ngrams = 5) {
     ndocs <- min(length(testset), maxdocs)
     testlist <- lapply(testset[1:ndocs], 
-                      function(x) splitStringToSet(x, n = 4))
+                      function(x) splitStringToSet(x, ngrams))
     testlist
 }
 
-testTM <- function(model, testlist, maxitems, n = 1, a = NULL) {
+testTM <- function(model, testlist, maxitems, n = 1, ngrams = 5, a = NULL) {
     #cl <- makeForkCluster(no_cores)
     #testlist <- parLapply(cl, tm.all.sample.test, function(x) splitStringToSet(x$content, n = 4))
     #testpairs <- parSapply(cl, testlist, function(x) x$pair)

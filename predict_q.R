@@ -23,104 +23,98 @@ cleanData <- function(textdata) {
     textdata
 }
 
-addTags <- function(textdata, keylen = 4) {  
-    textdata <- addtags(textdata, keylen)
+addTags <- function(textdata, ngrams = 5) {  
+    textdata <- addtags(textdata, ngrams)
 }
 
 # pass vector of character documents
-trainTM <- function(t, trimFeatures = FALSE, smoothK = 1, ...) {
+# Smoothing: Ak, GT: Ak - add k, GT - Good-Turing
+trainTM <- function(t, trimFeatures = FALSE, smoothingType = NULL, smoothK = 1, ngrams = 5, ...) {
     require(quanteda)
-    # add tags for tokenizing
-    t.one <- t
-    t.two <- addTags(t, keylen = 1)
-    t.three <- addTags(t, keylen = 2)
-    t.four <- addTags(t, keylen = 3)
-    t.five <- addTags(t, keylen = 4)
-    # create corpus on training set
-    c <- corpus(t)
-    # n-grams
-    dtm.l <- list(onegram = dfm(t.one),
-                  twogram = dfm(t.two, ngrams = 2L, concatenator = " "),
-                  threegram = dfm(t.three, ngrams = 3L, concatenator = " "),
-                  fourgram = dfm(t.four, ngrams = 4L, concatenator = " "),
-                  fivegram = dfm(t.five, ngrams = 5L, concatenator = " "))
+    # dtms - document term matrix - several
+    dtms <- lapply(1:ngrams, function(i) {
+        # add tags for tokenizing
+        t.tagged <- addTags(t, ngrams = i)
+        dtm <- dfm(t.tagged, ngrams = i, concatenator = " ")
+        if(trimFeatures) {
+            # trim rare terms
+            dtm <- trim(dtm, minCount = 2, minDoc = 1)
+        }
+        dtm
+    })
 
-    if(trimFeatures) {
-        # trim rare terms
-        dtm.l <- lapply(dtm.l, function(x) trim(x, minCount = 2, minDoc = 1))
-    }
-    ### Training
-
-    dt.l <- list(onegram = data.table(Key = features(dtm.l$onegram), 
-                                      Word = features(dtm.l$onegram), 
-#                                      Freq = docfreq(dtm.l$onegram, 
-#                                                     scheme = "count")),
-                                      Freq = colSums(dtm.l$onegram)),
-
-                 twogram = data.table(Key = getFirstNWords(features(dtm.l$twogram), 1), 
-                                      Word = getLastNWords(features(dtm.l$twogram), 1), 
-#                                      Freq = docfreq(dtm.l$twogram, 
-#                                                     scheme = "count")),
-                                        Freq = colSums(dtm.l$twogram)),
-
-                 threegram = data.table(Key = getFirstNWords(features(dtm.l$threegram), 2), 
-                                        Word = getLastNWords(features(dtm.l$threegram), 1), 
-#                                        Freq = docfreq(dtm.l$threegram, 
-#                                                       scheme = "count")),
-                                        Freq = colSums(dtm.l$threegram)), 
-
-                 fourgram = data.table(Key = getFirstNWords(features(dtm.l$fourgram), 3), 
-                                       Word = getLastNWords(features(dtm.l$fourgram), 1), 
-#                                       Freq = docfreq(dtm.l$fourgram, 
-#                                                      scheme = "count")),
-                                        Freq = colSums(dtm.l$fourgram)), 
-
-                 fivegram = data.table(Key = getFirstNWords(features(dtm.l$fivegram), 4), 
-                                        Word = getLastNWords(features(dtm.l$fivegram), 1), 
-#                                        Freq = docfreq(dtm.l$fivegram, 
-#                                                       scheme = "count")))
-                                        Freq = colSums(dtm.l$fivegram))) 
-
-
-    # EXPERIMENTAL: Remove starts and ends from tables:
-    dt.l$twogram <- dt.l$twogram[-grep("ss-ss|ee-ee", dt.l$twogram$Key)]
-    dt.l$twogram <- dt.l$twogram[-grep("ss-ss|ee-ee", dt.l$twogram$Word)]
-    dt.l$threegram <- dt.l$threegram[-grep("ss-ss|ee-ee", dt.l$threegram$Key)]
-    dt.l$threegram <- dt.l$threegram[-grep("ss-ss|ee-ee", dt.l$threegram$Word)]
-    dt.l$fourgram <- dt.l$fourgram[-grep("ss-ss|ee-ee", dt.l$fourgram$Key)]
-    dt.l$fourgram <- dt.l$fourgram[-grep("ss-ss|ee-ee", dt.l$fourgram$Word)]
-    dt.l$fivegram <- dt.l$fivegram[-grep("ss-ss|ee-ee", dt.l$fivegram$Key)]
-    dt.l$fivegram <- dt.l$fivegram[-grep("ss-ss|ee-ee", dt.l$fivegram$Word)]
+    # dts = data table several 
+    dts <- lapply(1:ngrams, function(i) {
+        dt <- data.table(Key = getFirstNWords(features(dtms[[i]]), i - 1), 
+                         Word = getLastNWords(features(dtms[[i]]), 1),
+                         # Freq = docfreq(dtm.l$onegram, 
+                         # scheme = "count")),
+                         Freq = colSums(dtms[[i]]))
     
-    # add smoothing
-    voc.size <- nrow(dt.l$onegram)
-
-    smooth.one <- function(dt, k = 1, V) {
-        N <- sum(dt$Freq)
+        # EXPERIMENTAL: Remove starts and ends from tables:
+        tagskey <- grep("ss-ss|ee-ee", dt$Key)
+        if(length(tagskey) > 0)
+            dt <- dt[-tagskey]
+        
+        tagsword <- grep("ss-ss|ee-ee", dt$Word)
+        if(length(tagsword) > 0)
+            dt <- dt[-tagsword]
+        dt
+    })
     
-        dt[, Prob := (Freq + k)/(N + k*V)]
-        dt[, FreqSmooth := Prob * N]
+    smooth.n <- function(dt, k = 1, ngram = 1, V = 1) {
+        if(ngram == 1) {
+            N <- sum(dt$Freq)
+            dt[, Prob := (Freq + k)/(N + k*V)]
+            dt[, FreqSmooth := Prob * N]
+        } else {
+            setkey(dt, Key)
+            dt[, Prob := (Freq + k)/(sum(Freq) + k*V), by = Key]
+            dt[, FreqSmooth := Prob * sum(Freq), by = Key]
+        }
         setkey(dt, Key)
+        dt
     }
     
-    smooth.n <- function(dt, k = 1, V) {
+    # EXPERIMENTAL Good-Turing Smoothing.
+    smooth.n.gt <- function(dt, k = 1, ngram = 1, V = 1) {
+        require(randomForest)
+        gt <- data.frame(Freq = as.integer(names(table(dt$Freq))), 
+                         FOfF = as.integer(table(dt$Freq)))
+        gt.fit <- randomForest(FOfF ~ Freq, data = gt)
+        dt$FofF <- predict(gt.fit, data.frame(Freq = dt$Freq))
+        dt$FofF1 <- predict(gt.fit, data.frame(Freq = (dt$Freq + k)))
+        
+        if(ngram == 1) {
+            N <- sum(dt$Freq)
+            dt[, FreqSmooth := (Freq + k) * FofF1/FofF]
+            dt[, Prob := FreqSmooth/(N + k*V)]
+        } else {
+            setkey(dt, Key)
+            dt[, FreqSmooth := (Freq + k) * FofF1/FofF]
+            dt[, Prob := FreqSmooth/(sum(FreqSmooth) + k*V), by = Key]
+        }
         setkey(dt, Key)
-        dt[, Prob := (Freq + k)/(sum(Freq) + k*V), by = Key]
-        dt[, FreqSmooth := Prob * sum(Freq), by = Key]
-        setkey(dt, Key)
+        dt
     }
     
-    smooth.one(dt.l$onegram, k = smoothK, V = voc.size)
-    smooth.n(dt.l$twogram, k = smoothK, V = voc.size)
-    smooth.n(dt.l$threegram, k = smoothK, V = voc.size)
-    smooth.n(dt.l$fourgram, k = smoothK, V = voc.size)
-    smooth.n(dt.l$fivegram, k = smoothK, V = voc.size)
-    
-    fit <- list(dtm = dtm.l,
-                dt = dt.l)
+    # Add smoothing
+    # Vocabulary size is the length of onegram dt, which is the first in the list
+    voc.size <- nrow(dts[[1]])
+    dts <- lapply(1:ngrams, function(i) {
+        if(smoothingType == "Ak")
+            dts <- smooth.n(dts[[i]], k = smoothK, V = voc.size)
+        else if(smoothingType == "GT")
+            dts <- smooth.n.gt(dts[[i]], k = smoothK, V = voc.size)
+        dts
+    })
+            
+    fit <- list(dtms = dtms,
+                dts = dts)
     fit
 }
 
+# REWRITE
 predictTM <- function(model, phrase, n = 1) {
     # stupid protection from phrases with less then 4 words.
     # need to be rewritten
@@ -132,15 +126,15 @@ predictTM <- function(model, phrase, n = 1) {
     phrase.one <- getLastNWords(phrase, 1)
     predicted.id <- 1:n #which.max(prob)
     
-    predicted.word <- model$dt$fivegram[phrase.four][order(-Prob)][predicted.id]
+    predicted.word <- model$dts[[5]][phrase.four][order(-Prob)][predicted.id]
     if(is.na(predicted.word$Word[1])) {
-        predicted.word <- model$dt$fourgram[phrase.three][order(-Prob)][predicted.id]
+        predicted.word <- model$dts[[4]][phrase.three][order(-Prob)][predicted.id]
         if(is.na(predicted.word$Word[1])) {
-            predicted.word <- model$dt$threegram[phrase.two][order(-Prob)][predicted.id]
+            predicted.word <- model$dts[[3]][phrase.two][order(-Prob)][predicted.id]
             if(is.na(predicted.word$Word[1])) {
-                predicted.word <- model$dt$twogram[phrase.one][order(-Prob)][predicted.id]
+                predicted.word <- model$dts[[2]][phrase.one][order(-Prob)][predicted.id]
                 if(is.na(predicted.word$Word[1])){
-                    predicted.word <- model$dt$onegram[order(-Prob)][predicted.id] 
+                    predicted.word <- model$dts[[1]][order(-Prob)][predicted.id] 
                 }
             }
         }
@@ -160,11 +154,11 @@ predictTMbo <- function(model, phrase, n = 1, a = c(1, 1, 1, 1, 1)) {
     phrase.one <- getLastNWords(phrase, 1)
     predicted.id <- 1:n #which.max(prob)
 
-    predicted.word5 <- model$dt$fivegram[phrase.four, nomatch = 0][, BOProb := Prob][order(-Prob)][predicted.id]
-    predicted.word4 <- model$dt$fourgram[phrase.three, nomatch = 0][, BOProb := Prob][order(-Prob)][predicted.id]
-    predicted.word3 <- model$dt$threegram[phrase.two, nomatch = 0][, BOProb := Prob][order(-Prob)][predicted.id]
-    predicted.word2 <- model$dt$twogram[phrase.one, nomatch = 0][, BOProb := Prob][order(-Prob)][predicted.id]
-    predicted.word1 <- model$dt$onegram[order(-Prob)][predicted.id, BOProb := Prob][predicted.id]
+    predicted.word5 <- model$dts[[5]][phrase.four, nomatch = 0][, BOProb := Prob][order(-Prob)][predicted.id]
+    predicted.word4 <- model$dts[[4]][phrase.three, nomatch = 0][, BOProb := Prob][order(-Prob)][predicted.id]
+    predicted.word3 <- model$dts[[3]][phrase.two, nomatch = 0][, BOProb := Prob][order(-Prob)][predicted.id]
+    predicted.word2 <- model$dts[[2]][phrase.one, nomatch = 0][, BOProb := Prob][order(-Prob)][predicted.id]
+    predicted.word1 <- model$dts[[1]][order(-Prob)][predicted.id, BOProb := Prob][predicted.id]
     
     if(!is.na(predicted.word5$Word[1])) {
         predicted.word4 <- predicted.word4[, BOProb := Prob * a[4]]
@@ -204,13 +198,13 @@ probTM <- function(model, phrase, word) {
     phrase.two <- getLastNWords(phrase, 2)
     phrase.one <- getLastNWords(phrase, 1)
 
-    match <- model$dt$fivegram[phrase.four][Word == word]
+    match <- model$dts[[5]][phrase.four][Word == word]
     if(length(match$Word) == 0) {
-        match <- model$dt$fourgram[phrase.three][Word == word]
+        match <- model$dts[[4]][phrase.three][Word == word]
         if(length(match$Word) == 0) {
-            match <- model$dt$threegram[phrase.two][Word == word]
+            match <- model$dts[[3]][phrase.two][Word == word]
             if(length(match$Word) == 0) {
-                match <- model$dt$twogram[phrase.one][Word == word]
+                match <- model$dts[[2]][phrase.one][Word == word]
                 if(length(match$Word) == 0){
                     match <- data.table(Key = NA, Word = NA, Freq = 0, Prob = 0, FreqSmooth = 0)
                 }
@@ -222,10 +216,10 @@ probTM <- function(model, phrase, word) {
 
 #    a <- c(0.02, 0.08, 0.1, 0.3, 0.5)
 #    
-#    predicted.word <- rbind(model$dt$fivegram[phrase.four, nomatch = 0][order(-Prob)][, BOProb := Prob * a[5]][predicted.id],
-#                            model$dt$fourgram[phrase.three, nomatch = 0][order(-Prob)][, BOProb := Prob * a[4]][predicted.id],
-#                            model$dt$threegram[phrase.two, nomatch = 0][order(-Prob)][, BOProb := Prob * a[3]][predicted.id],
-#                            model$dt$twogram[phrase.one, nomatch = 0][order(-Prob)][, BOProb := Prob * a[2]][predicted.id],
-#                            model$dt$onegram[order(-Prob)][predicted.id, BOProb := Prob * a[1]][predicted.id])
+#    predicted.word <- rbind(model$dts[[5]][phrase.four, nomatch = 0][order(-Prob)][, BOProb := Prob * a[5]][predicted.id],
+#                            model$dts[[4]][phrase.three, nomatch = 0][order(-Prob)][, BOProb := Prob * a[4]][predicted.id],
+#                            model$dts[[3]][phrase.two, nomatch = 0][order(-Prob)][, BOProb := Prob * a[3]][predicted.id],
+#                            model$dts[[2]][phrase.one, nomatch = 0][order(-Prob)][, BOProb := Prob * a[2]][predicted.id],
+#                            model$dts[[1]][order(-Prob)][predicted.id, BOProb := Prob * a[1]][predicted.id])
     
 #    predicted <- cbind(phrase.four, predicted.word)
