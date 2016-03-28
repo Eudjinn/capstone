@@ -115,32 +115,49 @@ trainTM <- function(t, trimFeatures = FALSE, smoothingType = NULL, smoothK = 1, 
 }
 
 # REWRITE
-predictTM <- function(model, phrase, n = 1) {
+predictTM <- function(model, phrase, n = 1, ngrams = 5) {
     # stupid protection from phrases with less then 4 words.
     # need to be rewritten
     dummy <- "<notaword> <notaword> <notaword> <notaword>"
+    phrase <- tolower(phrase)
     phrase <- paste(dummy, phrase)
-    phrase.four <- getLastNWords(phrase, 4)
-    phrase.three <- getLastNWords(phrase, 3)
-    phrase.two <- getLastNWords(phrase, 2)
-    phrase.one <- getLastNWords(phrase, 1)
-    predicted.id <- 1:n #which.max(prob)
+
+#    s <- unlist(strsplit(phrase, split = " "))
+#    s.length <- length(s)
     
-    predicted.word <- model$dts[[5]][phrase.four][order(-Prob)][predicted.id]
-    if(is.na(predicted.word$Word[1])) {
-        predicted.word <- model$dts[[4]][phrase.three][order(-Prob)][predicted.id]
-        if(is.na(predicted.word$Word[1])) {
-            predicted.word <- model$dts[[3]][phrase.two][order(-Prob)][predicted.id]
-            if(is.na(predicted.word$Word[1])) {
-                predicted.word <- model$dts[[2]][phrase.one][order(-Prob)][predicted.id]
-                if(is.na(predicted.word$Word[1])){
-                    predicted.word <- model$dts[[1]][order(-Prob)][predicted.id] 
+#    substr <- character(ngrams - 1)
+#    substr <- sapply(1:(ngrams - 1), function(i) {
+#        substr <- s[(s.length - ngrams + i + 1)]
+#        substr
+#    })
+
+    key <- sapply(1:(ngrams - 1), function(i) {
+        key <- getLastNWords(phrase, i)
+        key
+    })
+
+    predicted.word <- model$dts[[5]][key[4]][order(-Prob)][1:n]
+    nres <- sum(!is.na(predicted.word$Word)) 
+    if(nres < n) {
+        predicted.word <- rbind(predicted.word[complete.cases(predicted.word), ],
+                                model$dts[[4]][key[3]][order(-Prob)][1:n])
+        nres <- sum(!is.na(predicted.word$Word))
+        if(nres < n) {
+            predicted.word <- rbind(predicted.word[complete.cases(predicted.word), ],
+                                    model$dts[[3]][key[2]][order(-Prob)][1:n])
+            nres <- sum(!is.na(predicted.word$Word))
+            if(nres < n) {
+                predicted.word <- rbind(predicted.word[complete.cases(predicted.word), ],
+                                        model$dts[[2]][key[1]][order(-Prob)][1:n])
+                nres <- sum(!is.na(predicted.word$Word))
+                if(nres < n){
+                    predicted.word <- rbind(predicted.word[complete.cases(predicted.word), ],
+                                            model$dts[[1]][order(-Prob)][1:n])
                 }
             }
         }
     }
-#    predicted.word
-    predicted.word$Word
+    predicted.word$Word[1:n]
 }
 
 predictTMbo <- function(model, phrase, n = 1, a = c(1, 1, 1, 1, 1)) {

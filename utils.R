@@ -116,6 +116,10 @@ cleandoc <- function(doc) {
     doc <- iconv(doc, "UTF-8", "ascii", sub = " ")
 
     doc <- tolower(doc)
+
+    # remove urls
+    doc <- gsub("https?:\\/\\/(www)?\\.?[a-z0-9\\.\\-]+(\\/?[a-z0-9\\.#&_~\\-]+)+\\/?\\??[a-z0-9=\\.\\/\\+&#_~\\-]+", "", doc)
+    
     doc <- gsub("a\\.m\\. ", " am ", doc)
     doc <- gsub("p\\.m\\. ", " pm ", doc)
     doc <- gsub("u\\.s\\. ", " usa ", doc)
@@ -123,7 +127,7 @@ cleandoc <- function(doc) {
     doc <- gsub("e\\.g\\. ", " eg ", doc)
     doc <- gsub("etc\\. ", " etc ", doc)
     doc <- gsub("d\\.c\\. ", " dc ", doc)
-    
+
     # remove all sorts of numeric values
     doc <- gsub("[$]?[+-]?[0-9]{1,}(?:[0-9]*(?:[.,][0-9]{1,})?|(?:,[0-9]{1,})*(?:\\.[0-9]{1,})?|(?:\\.[0-9]{1,})*(?:,[0-9]{1,})?)[+%]?", " ", doc)
     # remove numbers
@@ -138,7 +142,7 @@ cleandoc <- function(doc) {
     # remove hash
     doc <- gsub("#", "", doc)
     
-    doc <- gsub("[\\(\\),:><\\+]", " ", doc)
+    doc <- gsub("[\\(\\),:><\\+/]", " ", doc)
     doc <- gsub("[><\\+]", "", doc)
 
     # collapse double apostropes in one space
