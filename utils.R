@@ -120,14 +120,17 @@ cleandoc <- function(doc) {
     # remove urls
     doc <- gsub("https?:\\/\\/(www)?\\.?[a-z0-9\\.\\-]+(\\/?[a-z0-9\\.#&_~\\-]+)+\\/?\\??[a-z0-9=\\.\\/\\+&#_~\\-]+", "", doc)
     
-    doc <- gsub("a\\.m\\. ", " am ", doc)
-    doc <- gsub("p\\.m\\. ", " pm ", doc)
-    doc <- gsub("u\\.s\\. ", " usa ", doc)
-    doc <- gsub("i\\.e\\. ", " ie ", doc)
-    doc <- gsub("e\\.g\\. ", " eg ", doc)
-    doc <- gsub("etc\\. ", " etc ", doc)
-    doc <- gsub("d\\.c\\. ", " dc ", doc)
-
+    doc <- gsub(" a\\.m\\. ", " am ", doc)
+    doc <- gsub(" p\\.m\\. ", " pm ", doc)
+    doc <- gsub(" u\\.s\\. ", " usa ", doc)
+    doc <- gsub(" i\\.e\\. ", " ie ", doc)
+    doc <- gsub(" e\\.g\\. ", " eg ", doc)
+    doc <- gsub(" etc\\. ", " etc ", doc)
+    doc <- gsub(" d\\.c\\. ", " dc ", doc)
+    doc <- gsub(" dr\\. ", " dr ", doc)
+    doc <- gsub(" mr\\. ", " mr ", doc)
+    doc <- gsub(" mrs\\. ", " mrs ", doc)
+    
     # remove all sorts of numeric values
     doc <- gsub("[$]?[+-]?[0-9]{1,}(?:[0-9]*(?:[.,][0-9]{1,})?|(?:,[0-9]{1,})*(?:\\.[0-9]{1,})?|(?:\\.[0-9]{1,})*(?:,[0-9]{1,})?)[+%]?", " ", doc)
     # remove numbers

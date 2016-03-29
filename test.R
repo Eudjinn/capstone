@@ -26,7 +26,7 @@ testTM <- function(model, testlist, maxitems, n = 1, ngrams = 5, a = NULL) {
                             function(y) predictTM(fit, y, n, ngrams))
     else if(length(a) == 5)
         predicted <- sapply(testpairs, 
-                            function(y) predictTMbo(fit, y, n, , ngrams, a))
+                            function(y) predictTMbo(fit, y, n, ngrams, a))
         
     predicted <- t(as.matrix(predicted, n))
     predicted[is.na(predicted)] <- "<unk>"

@@ -46,7 +46,7 @@ test <- cleanEnds(test)
 # test
 testlist <- makeTestList(test, maxdocs = 100, ngrams = 5)
 tr <- testTM(fit, testlist, n = 3, maxitems = 500, ngrams = 5)
-trbo <- testTM(fit, testlist, n = 3, maxitems = 500, a = c(1,1,1,1,1), ngrams = 5)
+trbo <- testTM(fit, testlist, n = 3, maxitems = 500, ngrams = 5, a = c(1,1,1,1,1))
 
 #for(a4 in seq(1, 0.1, -0.1))
  #   for(a3 in seq(1, 0.1, -0.1))

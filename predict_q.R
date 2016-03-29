@@ -160,7 +160,7 @@ predictTM <- function(model, phrase, n = 1, ngrams = 5) {
     predicted.word$Word[1:n]
 }
 
-predictTMbo <- function(model, phrase, n = 1, a = c(1, 1, 1, 1, 1)) {
+predictTMbo <- function(model, phrase, n = 1, ngrams = 5,  a = c(1, 1, 1, 1, 1)) {
     # stupid protection from phrases with less then 4 words.
     # need to be rewritten
     dummy <- "<notaword> <notaword> <notaword> <notaword>"
