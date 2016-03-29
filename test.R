@@ -23,10 +23,10 @@ testTM <- function(model, testlist, maxitems, n = 1, ngrams = 5, a = NULL) {
     #predicted <- parSapply(cl, testpairs, function(y) predictWord1(y, freq.dt.uni, freq.dt.bi, freq.dt.tri, freq.dt.four, freq.dt.five, 1))
     if(is.null(a))
         predicted <- sapply(testpairs, 
-                            function(y) predictTM(fit, y, n, ngrams))
+                            function(y) predictTM(model, y, n, ngrams))
     else if(length(a) == 5)
         predicted <- sapply(testpairs, 
-                            function(y) predictTMbo(fit, y, n, ngrams, a))
+                            function(y) predictTMbo(model, y, n, ngrams, a))
         
     predicted <- t(as.matrix(predicted, n))
     predicted[is.na(predicted)] <- "<unk>"
