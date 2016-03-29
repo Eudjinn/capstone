@@ -27,9 +27,8 @@ addTags <- function(textdata, ngrams = 5) {
     textdata <- addtags(textdata, ngrams)
 }
 
-# pass vector of character documents
-# Smoothing: Ak, GT: Ak - add k, GT - Good-Turing
-trainTM <- function(t, trimFeatures = FALSE, smoothingType = NULL, smoothK = 1, ngrams = 5, ...) {
+makeDTMs <- function(t = NULL, ngrams = 5, trimFeatures = FALSE, minCount = 3, minDoc = 2) {
+    cat("MAKE DTMs, Trim Features:", trimFeatures, "\n")
     require(quanteda)
     # dtms - document term matrix - several
     dtms <- lapply(1:ngrams, function(i) {
@@ -38,11 +37,32 @@ trainTM <- function(t, trimFeatures = FALSE, smoothingType = NULL, smoothK = 1, 
         dtm <- dfm(t.tagged, ngrams = i, concatenator = " ")
         if(trimFeatures) {
             # trim rare terms
-            dtm <- trim(dtm, minCount = 2, minDoc = 1)
+            dtm <- trim(dtm, minCount = minCount, minDoc = minDoc)
         }
         dtm
     })
+    dtms
+}
 
+# used for testing as trimming is done within makeDTM
+trimDTMs <- function(dtms = NULL, ngrams = 5, trimFeatures = FALSE, minCount = 3, minDoc = 2) {
+    cat("TRIM dtms, Trim Features: ", trimFeatures, "\n")
+    require(quanteda)
+    # dtms - document term matrix - several
+    dtms <- lapply(1:ngrams, function(i) {
+        if(trimFeatures) {
+            # trim rare terms
+            dtm <- trim(dtms[[i]], minCount = minCount, minDoc = minDoc)
+        } else {
+            dtm <- dtms[[i]]
+        }
+        dtm
+    })
+    dtms
+}
+
+makeDTs <- function(dtms = NULL, ngrams = 5) {
+    cat("MAKE DTs...\n")
     # dts = data table several 
     dts <- lapply(1:ngrams, function(i) {
         dt <- data.table(Key = getFirstNWords(features(dtms[[i]]), i - 1), 
@@ -50,7 +70,7 @@ trainTM <- function(t, trimFeatures = FALSE, smoothingType = NULL, smoothK = 1, 
                          # Freq = docfreq(dtm.l$onegram, 
                          # scheme = "count")),
                          Freq = colSums(dtms[[i]]))
-    
+        
         # EXPERIMENTAL: Remove starts and ends from tables:
         tagskey <- grep("ss-ss|ee-ee", dt$Key)
         if(length(tagskey) > 0)
@@ -61,16 +81,23 @@ trainTM <- function(t, trimFeatures = FALSE, smoothingType = NULL, smoothK = 1, 
             dt <- dt[-tagsword]
         dt
     })
-    
+    dts
+}
+
+smoothDTs <- function(dts = NULL, ngrams = 5, smoothingType = "none", smoothK = 1) {
+    cat("SMOOTH DTs, Smoothing Type:", smoothingType, ", k =", smoothK, "\n")
+    # Add-k smoothing
     smooth.n <- function(dt, k = 1, ngram = 1, V = 1) {
         if(ngram == 1) {
             N <- sum(dt$Freq)
+            dt[, SumFreq := sum(Freq)]
             dt[, Prob := (Freq + k)/(N + k*V)]
             dt[, FreqSmooth := Prob * N]
         } else {
             setkey(dt, Key)
-            dt[, Prob := (Freq + k)/(sum(Freq) + k*V), by = Key]
-            dt[, FreqSmooth := Prob * sum(Freq), by = Key]
+            dt[, SumFreq := sum(Freq), by = Key]
+            dt[, Prob := (Freq + k)/(SumFreq + k*V)]
+            dt[, FreqSmooth := Prob * SumFreq]
         }
         setkey(dt, Key)
         dt
@@ -88,16 +115,17 @@ trainTM <- function(t, trimFeatures = FALSE, smoothingType = NULL, smoothK = 1, 
         if(ngram == 1) {
             N <- sum(dt$Freq)
             dt[, FreqSmooth := (Freq + k) * FofF1/FofF]
+            dt[, SumFreqSmooth := sum(FreqSmooth)] # not needed actually, added only for consistency to match columns in ngram > 1
             dt[, Prob := FreqSmooth/(N + k*V)]
         } else {
-            setkey(dt, Key)
             dt[, FreqSmooth := (Freq + k) * FofF1/FofF]
-            dt[, Prob := FreqSmooth/(sum(FreqSmooth) + k*V), by = Key]
+            setkey(dt, Key)
+            dt[, SumFreqSmooth := sum(FreqSmooth), by = Key]
+            dt[, Prob := FreqSmooth/(SumFreqSmooth + k*V)]
         }
         setkey(dt, Key)
         dt
     }
-    
     # Add smoothing
     # Vocabulary size is the length of onegram dt, which is the first in the list
     voc.size <- nrow(dts[[1]])
@@ -106,9 +134,40 @@ trainTM <- function(t, trimFeatures = FALSE, smoothingType = NULL, smoothK = 1, 
             dts <- smooth.n(dts[[i]], k = smoothK, V = voc.size)
         else if(smoothingType == "GT")
             dts <- smooth.n.gt(dts[[i]], k = smoothK, V = voc.size)
+        else {
+            # if no smoothing selected - calculate probability with k = 0.
+            dts <- smooth.n(dts[[i]], k = 0)
+        }
         dts
     })
-            
+    dts
+}
+
+# Full training from beginning to end - when all the parameters needed are known.
+# pass vector of character documents and get the model as a result.
+# Smoothing: Ak, GT: Ak - add k, GT - Good-Turing
+trainTM <- function(t = NULL, trimFeatures = FALSE, minCount = 3, minDoc = 2, smoothingType = "none", smoothK = 1, ngrams = 5, ...) {
+    cat("TRAIN TM...", "Trim features:", trimFeatures, "Smoothing:", smoothingType, "\n")
+    require(quanteda)
+    
+    # dtms - document term matrix - several. trimming inside.
+    dtms <- makeDTMs(t = t, 
+                     ngrams = ngrams, 
+                     trimFeatures = trimFeatures, 
+                     minCount = minCount, 
+                     minDoc = minDoc)
+
+    # make dts from dtms
+    dts <- makeDTs(dtms = dtms, 
+                   ngrams = ngrams)
+        
+    # apply smoothing
+    dts <- smoothDTs(dts, 
+                     smoothingType = smoothingType, 
+                     smoothK = smoothK, 
+                     ngrams = ngrams)
+    
+    # return the model
     fit <- list(dtms = dtms,
                 dts = dts)
     fit
