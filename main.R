@@ -40,8 +40,7 @@ test <- cleansample[-inTrain]
 # test full training cycle
 fit.Ak <- trainTM(t = train, 
                   smoothingType = "Ak", 
-                  smoothK = 1, 
-                  lambda = c(0.0005, 0.0995, 0.15, 0.3, 0.45))
+                  smoothK = 1)
 #fit.GT <- trainTM(t = train, 
 #                  smoothingType = "GT", 
 #                  smoothK = 1, 
@@ -51,8 +50,7 @@ fit.Ak.trim <- trainTM(t = train,
                        minCount = 2, 
                        minDoc = 2, 
                        smoothingType = "Ak", 
-                       smoothK = 1, 
-                       lambda = c(0.0005, 0.0995, 0.15, 0.3, 0.45))
+                       smoothK = 1)
 #fit.GT.trim <- trainTM(t = train, 
 #                       trimFeatures = TRUE, 
 #                       minCount = 3, 
@@ -80,19 +78,21 @@ testlist <- makeTestList(test, maxdocs = 500, ngrams = 5)
 # trbo <- testTM(fit, testlist, n = 3, maxitems = 500, ngrams = 5, a = c(1,1,1,1,1))
 
 for(l1 in seq(0.005, 0.1, 0.005))
-    for(l2 in seq(0.05, 0.15, 0.05))
-        for(l3 in seq(0.1, 0.3, 0.05))
-            for(l4 in seq(0.1, 0.3, 0.1))
-                for(l5 in seq(0.1, 0.5, 0.1)) {
+    for(l2 in seq(0.095, 0.15, 0.005))
+        for(l3 in seq(0.01, 0.3, 0.005))
+            for(l4 in seq(0.05, 0.3, 0.05))
+                for(l5 in seq(0.05, 0.5, 0.05)) {
                     l <- c(l1, l2, l3, l4, l5)
                     if(sum(l) == 1) {
                         cat(l, "\n")
-                        fit.Ak$dts <- interpolateDTs(fit.Ak$dts, lambda = l)
-                        tr <- testTM(fit.Ak, testlist, n = 3, maxitems = 500, interpolate = TRUE)
+#                        tr <- testTM(fit.Ak, testlist, n = 3, maxitems = 100, interpolate = TRUE, l = c(l1, l2, l3, l4, l5))
+                        tr <- quiz2s(fit.Ak, interpolate = TRUE, l = c(l1, l2, l3, l4, l5))
                         cat("Interpolate:", l, "Accuracy:", tr$accuracy, "\n")
+                        cat("Predictions:", rbind(tr$predictions[,2], tr$predictions[,6]), "\n")
+                        s <- paste("Interpolate:", paste(l, collapse = ", "), "Accuracy:", tr$accuracy)
+                        write(s, "quiztest.txt", append = TRUE, sep = "\r\n")
                     }
                 }
-
 #for(a4 in seq(1, 0.1, -0.1))
  #   for(a3 in seq(1, 0.1, -0.1))
   #      for(a2 in seq(1, 0.1, -0.1)){

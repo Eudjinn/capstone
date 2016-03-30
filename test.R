@@ -5,7 +5,7 @@ makeTestList <- function(testset, maxdocs, ngrams = 5) {
     testlist
 }
 
-testTM <- function(model, testlist, maxitems, n = 1, ngrams = 5, a = NULL, interpolate = FALSE) {
+testTM <- function(model, testlist, maxitems, n = 1, ngrams = 5, a = NULL, interpolate = FALSE, l = c(0.0005, 0.0995, 0.15, 0.3, 0.45)) {
     #cl <- makeForkCluster(no_cores)
     #testlist <- parLapply(cl, tm.all.sample.test, function(x) splitStringToSet(x$content, n = 4))
     #testpairs <- parSapply(cl, testlist, function(x) x$pair)
@@ -34,7 +34,7 @@ testTM <- function(model, testlist, maxitems, n = 1, ngrams = 5, a = NULL, inter
     else if(interpolate & is.null(a)) {
         cat("Running predictTMInt...\n")
         predicted <- sapply(testpairs, 
-                            function(y) predictTMInt(model, y, n, ngrams))
+                            function(y) predictTMInt(model, y, n, ngrams, l))
     }
     else
         cat("Wrong test parameters!")

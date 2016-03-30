@@ -24,16 +24,16 @@ quiz2 <- function(fit) {
         predictTMbo(fit, "If this isn't the cutest thing you've ever seen, then you must be", n = 5, a = c(0.01,0.4,0.4,0.4,1)))
     )
     predictedInt <- data.table(rbind(
-        predictTMInt(fit, "The guy in front of me just bought a pound of bacon, a bouquet, and a case of", n = 5),
-        predictTMInt(fit, "You're the reason why I smile everyday. Can you follow me please? It would mean the", n = 5),
-        predictTMInt(fit, "Hey sunshine, can you follow me and make me the", n = 5),
-        predictTMInt(fit, "Very early observations on the Bills game: Offense still struggling but the", n = 5),
-        predictTMInt(fit, "Go on a romantic date at the", n = 5),
-        predictTMInt(fit, "Well I'm pretty sure my granny has some old bagpipes in her garage I'll dust them off and be on my", n = 5),
-        predictTMInt(fit, "Ohhhhh #PointBreak is on tomorrow. Love that film and haven't seen it in quite some", n = 5),
-        predictTMInt(fit, "After the ice bucket challenge Louis will push his long wet hair out of his eyes with his little", n = 5),
-        predictTMInt(fit, "Be grateful for the good times and keep the faith during the", n = 5),
-        predictTMInt(fit, "If this isn't the cutest thing you've ever seen, then you must be", n = 5))
+        predictTMInt(fit, "The guy in front of me just bought a pound of bacon, a bouquet, and a case of", n = 5, l = c(0.0005, 0.0995, 0.15, 0.3, 0.45)),
+        predictTMInt(fit, "You're the reason why I smile everyday. Can you follow me please? It would mean the", n = 5, l = c(0.0005, 0.0995, 0.15, 0.3, 0.45)),
+        predictTMInt(fit, "Hey sunshine, can you follow me and make me the", n = 5, l = c(0.0005, 0.0995, 0.15, 0.3, 0.45)),
+        predictTMInt(fit, "Very early observations on the Bills game: Offense still struggling but the", n = 5, l = c(0.0005, 0.0995, 0.15, 0.3, 0.45)),
+        predictTMInt(fit, "Go on a romantic date at the", n = 5, l = c(0.0005, 0.0995, 0.15, 0.3, 0.45)),
+        predictTMInt(fit, "Well I'm pretty sure my granny has some old bagpipes in her garage I'll dust them off and be on my", n = 5, l = c(0.0005, 0.0995, 0.15, 0.3, 0.45)),
+        predictTMInt(fit, "Ohhhhh #PointBreak is on tomorrow. Love that film and haven't seen it in quite some", n = 5, l = c(0.0005, 0.0995, 0.15, 0.3, 0.45)),
+        predictTMInt(fit, "After the ice bucket challenge Louis will push his long wet hair out of his eyes with his little", n = 5, l = c(0.0005, 0.0995, 0.15, 0.3, 0.45)),
+        predictTMInt(fit, "Be grateful for the good times and keep the faith during the", n = 5, l = c(0.0005, 0.0995, 0.15, 0.3, 0.45)),
+        predictTMInt(fit, "If this isn't the cutest thing you've ever seen, then you must be", n = 5), l = c(0.0005, 0.0995, 0.15, 0.3, 0.45))
     )
     probs <- data.table(rbind(
         probTM(fit, "The guy in front of me just bought a pound of bacon, a bouquet, and a case of", "pretzels"),
@@ -92,7 +92,7 @@ quiz2 <- function(fit) {
     result
 }
 
-quiz2s <- function(fit, n = 3, interpolate = FALSE) {
+quiz2s <- function(fit, n = 3, ngrams = 5, interpolate = FALSE, l = c(0.0005, 0.0995, 0.15, 0.3, 0.45)) {
 
     testpairs <- c("and a case of",
                    "it would mean the",
@@ -121,9 +121,9 @@ quiz2s <- function(fit, n = 3, interpolate = FALSE) {
     predicted <- sapply(testpairs, 
                         function(y) {
                             if(interpolate)
-                                predictTMInt(fit, y, n)
+                                predictTMInt(model = fit, phrase = y, n = n, ngrams = ngrams, l = l)
                             else
-                                predictTM(fit, y, n)
+                                predictTM(model = fit, phrase = y, n = n, ngrams = ngrams)
                         })
     
     predicted <- t(as.matrix(predicted, n))
@@ -144,7 +144,6 @@ quiz2s <- function(fit, n = 3, interpolate = FALSE) {
                                        equal),
                    matches = matches,
                    accuracy = matches["TRUE"]/(matches["TRUE"] + matches["FALSE"]))
-    print(result)
 }
 
 # ordered results

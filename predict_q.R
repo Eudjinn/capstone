@@ -136,38 +136,6 @@ smoothDTs <- function(dts = NULL, ngrams = 5, smoothingType = "none", smoothK = 
     dts
 }
 
-interpolateDTs <- function(dts = NULL, ngrams = 5, lambda = c(0.02, 0.08, 0.1, 0.3, 0.5)) {
-    cat("Interpolate DTs...\n")
-    lapply(1:ngrams, function(i) {
-         setkey(dts[[i]], Key)
-    })
-    
-    dts[[1]][, IProb := lambda[1] * Prob]
-    dts[[1]][, KeyWord := Key] # not needed, added for consistency
-    setkey(dts[[1]], KeyWord) # not needed, added for consistency
-    
-    dts[[2]][dts[[1]], IProb := i.IProb + lambda[2] * Prob]
-    dts[[2]][, KeyWord := paste(Key, Word)]
-    setkey(dts[[2]], KeyWord)
-    
-    dts[[3]][dts[[2]], IProb := i.IProb + lambda[3] * Prob]
-    dts[[3]][, KeyWord := paste(Key, Word)]
-    setkey(dts[[3]], KeyWord)
-    
-    dts[[4]][dts[[3]], IProb := i.IProb + lambda[4] * Prob]
-    dts[[4]][, KeyWord := paste(Key, Word)]
-    setkey(dts[[4]], KeyWord)
-    
-    dts[[5]][dts[[4]], IProb := i.IProb + lambda[5] * Prob]
-    dts[[5]][, KeyWord := paste(Key, Word)] # not needed, added for consistency
-    setkey(dts[[5]], KeyWord) # not needed, added for consistency
-    
-    lapply(1:ngrams, function(i) {
-        setkey(dts[[i]], Key) # set key back before deletling KeyWord
-    })
-    dts
-}
-
 cleanDTs <- function(dts = NULL, ngrams = 5) {
     dts <- lapply(1:ngrams, function(i) {
         # EXPERIMENTAL: Remove starts and ends from tables:
@@ -194,7 +162,6 @@ trainTM <- function(t = NULL,
                     smoothingType = "none", 
                     smoothK = 1, 
                     ngrams = 5,
-                    lambda = c(0.02, 0.08, 0.1, 0.3, 0.5), 
                     ...) {
     cat("TRAIN TM...", "Trim features:", trimFeatures, "Smoothing:", smoothingType, "\n")
     require(quanteda)
@@ -215,10 +182,6 @@ trainTM <- function(t = NULL,
                      smoothingType = smoothingType, 
                      smoothK = smoothK, 
                      ngrams = ngrams)
-    
-    dts <- interpolateDTs(dts, 
-                          ngrams = ngrams, 
-                          lambda = lambda)
     
     dts <- cleanDTs(dts,
                     ngrams = ngrams)
@@ -274,7 +237,7 @@ predictTM <- function(model, phrase, n = 1, ngrams = 5) {
     predicted.word$Word[1:n]
 }
 
-predictTMInt <- function(model, phrase, n = 1, ngrams = 5) {
+predictTMInt <- function(model, phrase, n = 1, ngrams = 5, l = c(0.0005, 0.0995, 0.15, 0.3, 0.45)) {
     # stupid protection from phrases with less then 4 words.
     # need to be rewritten
     dummy <- "<notaword> <notaword> <notaword> <notaword>"
@@ -295,30 +258,45 @@ predictTMInt <- function(model, phrase, n = 1, ngrams = 5) {
         key
     })
     
-    predicted.word <- model$dts[[5]][key[4]][order(-IProb)][1:n]
+    predicted.word <- model$dts[[5]][key[4]][order(-Prob)][1:n]
     nres <- sum(!is.na(predicted.word$Word)) 
     if(nres < n) {
         predicted.word <- rbind(predicted.word[complete.cases(predicted.word), ],
-                                model$dts[[4]][key[3]][order(-IProb)][1:n])
+                                model$dts[[4]][key[3]][order(-Prob)][1:n])
         nres <- sum(!is.na(predicted.word$Word))
         if(nres < n) {
             predicted.word <- rbind(predicted.word[complete.cases(predicted.word), ],
-                                    model$dts[[3]][key[2]][order(-IProb)][1:n])
+                                    model$dts[[3]][key[2]][order(-Prob)][1:n])
             nres <- sum(!is.na(predicted.word$Word))
             if(nres < n) {
                 predicted.word <- rbind(predicted.word[complete.cases(predicted.word), ],
-                                        model$dts[[2]][key[1]][order(-IProb)][1:n])
+                                        model$dts[[2]][key[1]][order(-Prob)][1:n])
                 nres <- sum(!is.na(predicted.word$Word))
                 if(nres < n){
                     predicted.word <- rbind(predicted.word[complete.cases(predicted.word), ],
-                                            model$dts[[1]][order(-IProb)][1:n])
+                                            model$dts[[1]][order(-Prob)][1:n])
                 }
             }
         }
     }
-    predicted.word$Word[1:n]
-}
+    predicted.word[, IProb := 0]
+    probs <- numeric(ngrams)
+    for(i in 1:nrow(predicted.word)) {
+        word <- predicted.word$Word[i]
+        
+        probs[5] <- model$dts[[5]][key[4]][Word == word]$Prob[1]
+        probs[4] <- model$dts[[4]][key[3]][Word == word]$Prob[1]
+        probs[3] <- model$dts[[3]][key[2]][Word == word]$Prob[1]
+        probs[2] <- model$dts[[2]][key[1]][Word == word]$Prob[1]
+        probs[1] <- model$dts[[1]][word]$Prob[1]
+        
+        probs[is.na(probs)] <- 0
+        
+        predicted.word[i]$IProb <- sum(probs * l)
+    }
 
+    predicted.word[order(-IProb)][1:n]$Word
+}
 
 predictTMbo <- function(model, phrase, n = 1, ngrams = 5,  a = c(1, 1, 1, 1, 1)) {
     # stupid protection from phrases with less then 4 words.
