@@ -5,7 +5,7 @@ makeTestList <- function(testset, maxdocs, ngrams = 5) {
     testlist
 }
 
-testTM <- function(model, testlist, maxitems, n = 1, ngrams = 5, a = NULL) {
+testTM <- function(model, testlist, maxitems, n = 1, ngrams = 5, a = NULL, interpolate = FALSE) {
     #cl <- makeForkCluster(no_cores)
     #testlist <- parLapply(cl, tm.all.sample.test, function(x) splitStringToSet(x$content, n = 4))
     #testpairs <- parSapply(cl, testlist, function(x) x$pair)
@@ -21,13 +21,24 @@ testTM <- function(model, testlist, maxitems, n = 1, ngrams = 5, a = NULL) {
 
     ###
     #predicted <- parSapply(cl, testpairs, function(y) predictWord1(y, freq.dt.uni, freq.dt.bi, freq.dt.tri, freq.dt.four, freq.dt.five, 1))
-    if(is.null(a))
+    if(!interpolate & is.null(a)) {
+        cat("Running predictTM...\n")
         predicted <- sapply(testpairs, 
                             function(y) predictTM(model, y, n, ngrams))
-    else if(length(a) == 5)
+    }
+    else if(!is.null(a) & ! interpolate) {
+        cat("Running predictTMbo...\n")
         predicted <- sapply(testpairs, 
                             function(y) predictTMbo(model, y, n, ngrams, a))
-        
+    }
+    else if(interpolate & is.null(a)) {
+        cat("Running predictTMInt...\n")
+        predicted <- sapply(testpairs, 
+                            function(y) predictTMInt(model, y, n, ngrams))
+    }
+    else
+        cat("Wrong test parameters!")
+    
     predicted <- t(as.matrix(predicted, n))
     predicted[is.na(predicted)] <- "<unk>"
 

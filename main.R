@@ -12,7 +12,7 @@ library(randomForest)
 # options 
 options(mc.cores = max(1, detectCores()))
 # number of rows from original docs to use
-sample.percent <- 0.05
+sample.percent <- 0.5
 # proportion of training set
 train.percent <- 0.7
 
@@ -38,10 +38,28 @@ train <- cleansample[inTrain]
 test <- cleansample[-inTrain]
 
 # test full training cycle
-fit.Ak <- trainTM(t = train, smoothingType = "Ak", smoothK = 1)
-fit.GT <- trainTM(t = train, smoothingType = "GT", smoothK = 1)
-fit.Ak.trim <- trainTM(t = train, trimFeatures = TRUE, minCount = 3, minDoc = 2, smoothingType = "Ak", smoothK = 1)
-fit.GT.trim <- trainTM(t = train, trimFeatures = TRUE, minCount = 3, minDoc = 2, smoothingType = "GT", smoothK = 1)
+fit.Ak <- trainTM(t = train, 
+                  smoothingType = "Ak", 
+                  smoothK = 1, 
+                  lambda = c(0.0005, 0.0995, 0.15, 0.3, 0.45))
+#fit.GT <- trainTM(t = train, 
+#                  smoothingType = "GT", 
+#                  smoothK = 1, 
+#                  lambda = c(0.02, 0.08, 0.1, 0.3, 0.5))
+fit.Ak.trim <- trainTM(t = train, 
+                       trimFeatures = TRUE, 
+                       minCount = 2, 
+                       minDoc = 2, 
+                       smoothingType = "Ak", 
+                       smoothK = 1, 
+                       lambda = c(0.0005, 0.0995, 0.15, 0.3, 0.45))
+#fit.GT.trim <- trainTM(t = train, 
+#                       trimFeatures = TRUE, 
+#                       minCount = 3, 
+#                       minDoc = 2, 
+#                       smoothingType = "GT", 
+#                       smoothK = 1, 
+#                       lambda = c(0.02, 0.08, 0.1, 0.3, 0.5))
 
 # remove end of sentence chars after model was trained.
 train <- cleanEnds(train)
@@ -49,12 +67,31 @@ test <- cleanEnds(test)
 
 # test
 testlist <- makeTestList(test, maxdocs = 500, ngrams = 5)
-tr.Ak <- testTM(fit.Ak, testlist, n = 3, maxitems = 5000, ngrams = 5)
-tr.GT <- testTM(fit.GT, testlist, n = 3, maxitems = 5000, ngrams = 5)
-tr.Ak.trim <- testTM(fit.Ak.trim, testlist, n = 3, maxitems = 5000, ngrams = 5)
-tr.GT.trim <- testTM(fit.GT.trim, testlist, n = 3, maxitems = 5000, ngrams = 5)
+#tr.Ak <- testTM(fit.Ak, testlist, n = 3, maxitems = 1000, ngrams = 5)
+#tr.GT <- testTM(fit.GT, testlist, n = 3, maxitems = 1000, ngrams = 5)
+#tr.Aki <- testTM(fit.Ak, testlist, n = 3, maxitems = 1000, ngrams = 5, interpolate = TRUE)
+#tr.GTi <- testTM(fit.GT, testlist, n = 3, maxitems = 1000, ngrams = 5, interpolate = TRUE)
+
+#tr.Ak.trim <- testTM(fit.Ak.trim, testlist, n = 3, maxitems = 1000, ngrams = 5)
+#tr.GT.trim <- testTM(fit.GT.trim, testlist, n = 3, maxitems = 1000, ngrams = 5)
+#tr.Aki.trim <- testTM(fit.Ak.trim, testlist, n = 3, maxitems = 1000, ngrams = 5, interpolate = TRUE)
+#tr.GTi.trim <- testTM(fit.GT.trim, testlist, n = 3, maxitems = 1000, ngrams = 5, interpolate = TRUE)
 
 # trbo <- testTM(fit, testlist, n = 3, maxitems = 500, ngrams = 5, a = c(1,1,1,1,1))
+
+for(l1 in seq(0.005, 0.1, 0.005))
+    for(l2 in seq(0.05, 0.15, 0.05))
+        for(l3 in seq(0.1, 0.3, 0.05))
+            for(l4 in seq(0.1, 0.3, 0.1))
+                for(l5 in seq(0.1, 0.5, 0.1)) {
+                    l <- c(l1, l2, l3, l4, l5)
+                    if(sum(l) == 1) {
+                        cat(l, "\n")
+                        fit.Ak$dts <- interpolateDTs(fit.Ak$dts, lambda = l)
+                        tr <- testTM(fit.Ak, testlist, n = 3, maxitems = 500, interpolate = TRUE)
+                        cat("Interpolate:", l, "Accuracy:", tr$accuracy, "\n")
+                    }
+                }
 
 #for(a4 in seq(1, 0.1, -0.1))
  #   for(a3 in seq(1, 0.1, -0.1))

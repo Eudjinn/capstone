@@ -1,4 +1,4 @@
-quiz2 <- function() {
+quiz2 <- function(fit) {
     predicted <- data.table(rbind(
         predictTM(fit, "The guy in front of me just bought a pound of bacon, a bouquet, and a case of", n = 5),
         predictTM(fit, "You're the reason why I smile everyday. Can you follow me please? It would mean the", n = 5),
@@ -22,6 +22,18 @@ quiz2 <- function() {
         predictTMbo(fit, "After the ice bucket challenge Louis will push his long wet hair out of his eyes with his little", n = 5, a = c(0.01,0.4,0.4,0.4,1)),
         predictTMbo(fit, "Be grateful for the good times and keep the faith during the", n = 5, a = c(0.01,0.4,0.4,0.4,1)),
         predictTMbo(fit, "If this isn't the cutest thing you've ever seen, then you must be", n = 5, a = c(0.01,0.4,0.4,0.4,1)))
+    )
+    predictedInt <- data.table(rbind(
+        predictTMInt(fit, "The guy in front of me just bought a pound of bacon, a bouquet, and a case of", n = 5),
+        predictTMInt(fit, "You're the reason why I smile everyday. Can you follow me please? It would mean the", n = 5),
+        predictTMInt(fit, "Hey sunshine, can you follow me and make me the", n = 5),
+        predictTMInt(fit, "Very early observations on the Bills game: Offense still struggling but the", n = 5),
+        predictTMInt(fit, "Go on a romantic date at the", n = 5),
+        predictTMInt(fit, "Well I'm pretty sure my granny has some old bagpipes in her garage I'll dust them off and be on my", n = 5),
+        predictTMInt(fit, "Ohhhhh #PointBreak is on tomorrow. Love that film and haven't seen it in quite some", n = 5),
+        predictTMInt(fit, "After the ice bucket challenge Louis will push his long wet hair out of his eyes with his little", n = 5),
+        predictTMInt(fit, "Be grateful for the good times and keep the faith during the", n = 5),
+        predictTMInt(fit, "If this isn't the cutest thing you've ever seen, then you must be", n = 5))
     )
     probs <- data.table(rbind(
         probTM(fit, "The guy in front of me just bought a pound of bacon, a bouquet, and a case of", "pretzels"),
@@ -80,7 +92,7 @@ quiz2 <- function() {
     result
 }
 
-quiz2s <- function(n = 3, a = c(0.01, 0.1, 0.1, 0.1, 1)) {
+quiz2s <- function(fit, n = 3, interpolate = FALSE) {
 
     testpairs <- c("and a case of",
                    "it would mean the",
@@ -106,12 +118,13 @@ quiz2s <- function(n = 3, a = c(0.01, 0.1, 0.1, 0.1, 1)) {
     
     nitems <- length(testwords)
         
-    if(is.null(a))
-        predicted <- sapply(testpairs, 
-                            function(y) predictTM(fit, y, n))
-    else if(length(a) == 5)
-        predicted <- sapply(testpairs, 
-                            function(y) predictTMbo(fit, y, n, a))
+    predicted <- sapply(testpairs, 
+                        function(y) {
+                            if(interpolate)
+                                predictTMInt(fit, y, n)
+                            else
+                                predictTM(fit, y, n)
+                        })
     
     predicted <- t(as.matrix(predicted, n))
     predicted[is.na(predicted)] <- "<unk>"
@@ -131,7 +144,7 @@ quiz2s <- function(n = 3, a = c(0.01, 0.1, 0.1, 0.1, 1)) {
                                        equal),
                    matches = matches,
                    accuracy = matches["TRUE"]/(matches["TRUE"] + matches["FALSE"]))
-    result
+    print(result)
 }
 
 # ordered results

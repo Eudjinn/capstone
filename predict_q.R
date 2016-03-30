@@ -70,16 +70,6 @@ makeDTs <- function(dtms = NULL, ngrams = 5) {
                          # Freq = docfreq(dtm.l$onegram, 
                          # scheme = "count")),
                          Freq = colSums(dtms[[i]]))
-        
-        # EXPERIMENTAL: Remove starts and ends from tables:
-        tagskey <- grep("ss-ss|ee-ee", dt$Key)
-        if(length(tagskey) > 0)
-            dt <- dt[-tagskey]
-        
-        tagsword <- grep("ss-ss|ee-ee", dt$Word)
-        if(length(tagsword) > 0)
-            dt <- dt[-tagsword]
-        dt
     })
     dts
 }
@@ -88,8 +78,9 @@ smoothDTs <- function(dts = NULL, ngrams = 5, smoothingType = "none", smoothK = 
     cat("SMOOTH DTs, Smoothing Type:", smoothingType, ", k =", smoothK, "\n")
     # Add-k smoothing
     smooth.n <- function(dt, k = 1, ngram = 1, V = 1) {
+        N <- sum(dt$Freq)
+        V <- nrow(dt)
         if(ngram == 1) {
-            N <- sum(dt$Freq)
             dt[, SumFreq := sum(Freq)]
             dt[, Prob := (Freq + k)/(N + k*V)]
             dt[, FreqSmooth := Prob * N]
@@ -99,6 +90,7 @@ smoothDTs <- function(dts = NULL, ngrams = 5, smoothingType = "none", smoothK = 
             dt[, Prob := (Freq + k)/(SumFreq + k*V)]
             dt[, FreqSmooth := Prob * SumFreq]
         }
+        dt
         setkey(dt, Key)
         dt
     }
@@ -112,8 +104,9 @@ smoothDTs <- function(dts = NULL, ngrams = 5, smoothingType = "none", smoothK = 
         dt$FofF <- predict(gt.fit, data.frame(Freq = dt$Freq))
         dt$FofF1 <- predict(gt.fit, data.frame(Freq = (dt$Freq + k)))
         
+        N <- sum(dt$Freq)
+        V <- nrow(dt)
         if(ngram == 1) {
-            N <- sum(dt$Freq)
             dt[, FreqSmooth := (Freq + k) * FofF1/FofF]
             dt[, SumFreqSmooth := sum(FreqSmooth)] # not needed actually, added only for consistency to match columns in ngram > 1
             dt[, Prob := FreqSmooth/(N + k*V)]
@@ -131,22 +124,78 @@ smoothDTs <- function(dts = NULL, ngrams = 5, smoothingType = "none", smoothK = 
     voc.size <- nrow(dts[[1]])
     dts <- lapply(1:ngrams, function(i) {
         if(smoothingType == "Ak")
-            dts <- smooth.n(dts[[i]], k = smoothK, V = voc.size)
+            dt <- smooth.n(dts[[i]], k = smoothK, V = voc.size)
         else if(smoothingType == "GT")
-            dts <- smooth.n.gt(dts[[i]], k = smoothK, V = voc.size)
+            dt <- smooth.n.gt(dts[[i]], k = smoothK, V = voc.size)
         else {
             # if no smoothing selected - calculate probability with k = 0.
-            dts <- smooth.n(dts[[i]], k = 0)
+            dt <- smooth.n(dts[[i]], k = 0)
         }
-        dts
+        dt
     })
     dts
 }
 
+interpolateDTs <- function(dts = NULL, ngrams = 5, lambda = c(0.02, 0.08, 0.1, 0.3, 0.5)) {
+    cat("Interpolate DTs...\n")
+    lapply(1:ngrams, function(i) {
+         setkey(dts[[i]], Key)
+    })
+    
+    dts[[1]][, IProb := lambda[1] * Prob]
+    dts[[1]][, KeyWord := Key] # not needed, added for consistency
+    setkey(dts[[1]], KeyWord) # not needed, added for consistency
+    
+    dts[[2]][dts[[1]], IProb := i.IProb + lambda[2] * Prob]
+    dts[[2]][, KeyWord := paste(Key, Word)]
+    setkey(dts[[2]], KeyWord)
+    
+    dts[[3]][dts[[2]], IProb := i.IProb + lambda[3] * Prob]
+    dts[[3]][, KeyWord := paste(Key, Word)]
+    setkey(dts[[3]], KeyWord)
+    
+    dts[[4]][dts[[3]], IProb := i.IProb + lambda[4] * Prob]
+    dts[[4]][, KeyWord := paste(Key, Word)]
+    setkey(dts[[4]], KeyWord)
+    
+    dts[[5]][dts[[4]], IProb := i.IProb + lambda[5] * Prob]
+    dts[[5]][, KeyWord := paste(Key, Word)] # not needed, added for consistency
+    setkey(dts[[5]], KeyWord) # not needed, added for consistency
+    
+    lapply(1:ngrams, function(i) {
+        setkey(dts[[i]], Key) # set key back before deletling KeyWord
+    })
+    dts
+}
+
+cleanDTs <- function(dts = NULL, ngrams = 5) {
+    dts <- lapply(1:ngrams, function(i) {
+        # EXPERIMENTAL: Remove starts and ends from tables:
+        tagskey <- grep("ss-ss|ee-ee", dts[[i]]$Key)
+        if(length(tagskey) > 0)
+            dts[[i]] <- dts[[i]][-tagskey]
+        
+        tagsword <- grep("ss-ss|ee-ee", dts[[i]]$Word)
+        if(length(tagsword) > 0)
+            dts[[i]] <- dts[[i]][-tagsword]
+        dts[[i]]
+    })
+    dts
+}
+
+
 # Full training from beginning to end - when all the parameters needed are known.
 # pass vector of character documents and get the model as a result.
 # Smoothing: Ak, GT: Ak - add k, GT - Good-Turing
-trainTM <- function(t = NULL, trimFeatures = FALSE, minCount = 3, minDoc = 2, smoothingType = "none", smoothK = 1, ngrams = 5, ...) {
+trainTM <- function(t = NULL, 
+                    trimFeatures = FALSE, 
+                    minCount = 3, 
+                    minDoc = 2, 
+                    smoothingType = "none", 
+                    smoothK = 1, 
+                    ngrams = 5,
+                    lambda = c(0.02, 0.08, 0.1, 0.3, 0.5), 
+                    ...) {
     cat("TRAIN TM...", "Trim features:", trimFeatures, "Smoothing:", smoothingType, "\n")
     require(quanteda)
     
@@ -167,6 +216,12 @@ trainTM <- function(t = NULL, trimFeatures = FALSE, minCount = 3, minDoc = 2, sm
                      smoothK = smoothK, 
                      ngrams = ngrams)
     
+    dts <- interpolateDTs(dts, 
+                          ngrams = ngrams, 
+                          lambda = lambda)
+    
+    dts <- cleanDTs(dts,
+                    ngrams = ngrams)
     # return the model
     fit <- list(dtms = dtms,
                 dts = dts)
@@ -218,6 +273,52 @@ predictTM <- function(model, phrase, n = 1, ngrams = 5) {
     }
     predicted.word$Word[1:n]
 }
+
+predictTMInt <- function(model, phrase, n = 1, ngrams = 5) {
+    # stupid protection from phrases with less then 4 words.
+    # need to be rewritten
+    dummy <- "<notaword> <notaword> <notaword> <notaword>"
+    phrase <- tolower(phrase)
+    phrase <- paste(dummy, phrase)
+    
+    #    s <- unlist(strsplit(phrase, split = " "))
+    #    s.length <- length(s)
+    
+    #    substr <- character(ngrams - 1)
+    #    substr <- sapply(1:(ngrams - 1), function(i) {
+    #        substr <- s[(s.length - ngrams + i + 1)]
+    #        substr
+    #    })
+    
+    key <- sapply(1:(ngrams - 1), function(i) {
+        key <- getLastNWords(phrase, i)
+        key
+    })
+    
+    predicted.word <- model$dts[[5]][key[4]][order(-IProb)][1:n]
+    nres <- sum(!is.na(predicted.word$Word)) 
+    if(nres < n) {
+        predicted.word <- rbind(predicted.word[complete.cases(predicted.word), ],
+                                model$dts[[4]][key[3]][order(-IProb)][1:n])
+        nres <- sum(!is.na(predicted.word$Word))
+        if(nres < n) {
+            predicted.word <- rbind(predicted.word[complete.cases(predicted.word), ],
+                                    model$dts[[3]][key[2]][order(-IProb)][1:n])
+            nres <- sum(!is.na(predicted.word$Word))
+            if(nres < n) {
+                predicted.word <- rbind(predicted.word[complete.cases(predicted.word), ],
+                                        model$dts[[2]][key[1]][order(-IProb)][1:n])
+                nres <- sum(!is.na(predicted.word$Word))
+                if(nres < n){
+                    predicted.word <- rbind(predicted.word[complete.cases(predicted.word), ],
+                                            model$dts[[1]][order(-IProb)][1:n])
+                }
+            }
+        }
+    }
+    predicted.word$Word[1:n]
+}
+
 
 predictTMbo <- function(model, phrase, n = 1, ngrams = 5,  a = c(1, 1, 1, 1, 1)) {
     # stupid protection from phrases with less then 4 words.
