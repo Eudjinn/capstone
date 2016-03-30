@@ -1,12 +1,15 @@
-makeTestList <- function(testset, maxdocs, ngrams = 5) {
+makeTestList <- function(testset, maxdocs, ngrams = 4) {
     ndocs <- min(length(testset), maxdocs)
     testlist <- lapply(testset[1:ndocs], 
                       function(x) splitStringToSet(x, ngrams))
     testlist
 }
 
-testTM <- function(model, testlist, maxitems, n = 1, ngrams = 5, a = NULL, interpolate = FALSE, l = c(0.0005, 0.0995, 0.15, 0.3, 0.45)) {
-    #cl <- makeForkCluster(no_cores)
+testTM <- function(model, testlist, maxitems, n = 1, ngrams = 4, a = NULL, interpolate = FALSE, l = c(0.1, 0.15, 0.3, 0.45), parallel = FALSE) {
+    if(parallel) {
+        no_cores <- max(1, detectCores() - 1)
+        cl <- makeForkCluster(no_cores)
+    }
     #testlist <- parLapply(cl, tm.all.sample.test, function(x) splitStringToSet(x$content, n = 4))
     #testpairs <- parSapply(cl, testlist, function(x) x$pair)
     testpairs <- sapply(testlist, function(x) { if(length(x$key) > 0) x$key })
@@ -23,18 +26,32 @@ testTM <- function(model, testlist, maxitems, n = 1, ngrams = 5, a = NULL, inter
     #predicted <- parSapply(cl, testpairs, function(y) predictWord1(y, freq.dt.uni, freq.dt.bi, freq.dt.tri, freq.dt.four, freq.dt.five, 1))
     if(!interpolate & is.null(a)) {
         cat("Running predictTM...\n")
-        predicted <- sapply(testpairs, 
-                            function(y) predictTM(model, y, n, ngrams))
+        if(parallel)
+            predicted <- parSapply(cl, testpairs, 
+                                function(y) predictTM(model = model, phrase = y, n = n, ngrams = ngrams))
+        else
+            predicted <- sapply(testpairs, 
+                                   function(y) predictTM(model = model, phrase = y, n = n, ngrams = ngrams))
     }
     else if(!is.null(a) & ! interpolate) {
         cat("Running predictTMbo...\n")
-        predicted <- sapply(testpairs, 
-                            function(y) predictTMbo(model, y, n, ngrams, a))
+        if(parallel)
+            predicted <- parSapply(cl, testpairs, 
+                            function(y) predictTMbo(model = model, phrase = y, n = n, ngrams = ngrams, a))
+        else
+            predicted <- sapply(testpairs, 
+                                   function(y) predictTMbo(model = model, phrase = y, n = n, ngrams = ngrams, a))
+        
     }
     else if(interpolate & is.null(a)) {
         cat("Running predictTMInt...\n")
-        predicted <- sapply(testpairs, 
-                            function(y) predictTMInt(model, y, n, ngrams, l))
+        if(parallel)
+            predicted <- parSapply(cl, testpairs, 
+                                   function(y) predictTMInt(model = model, phrase = y , n = n, ngrams = ngrams, l = l))
+        else
+            predicted <- sapply(testpairs, 
+                                function(y) predictTMInt(model = model, phrase = y , n = n, ngrams = ngrams, l = l))
+        
     }
     else
         cat("Wrong test parameters!")
@@ -57,6 +74,7 @@ testTM <- function(model, testlist, maxitems, n = 1, ngrams = 5, a = NULL, inter
                                         equal),
                    matches = matches,
                    accuracy = matches["TRUE"]/(matches["TRUE"] + matches["FALSE"]))
-    #stopCluster(cl)
+    if(parallel) 
+        stopCluster(cl)
     result
 }

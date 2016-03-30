@@ -79,7 +79,7 @@ removeFirstNWords <- function(s, n = 1) {
 }
 
 # n = key length (ngram is key + word)
-splitStringToSet <- function(s, ngrams = 5) {
+splitStringToSet <- function(s, ngrams = 4) {
     triples <- list()
     if(ngrams > 1)
     {
@@ -173,7 +173,7 @@ cleandoc <- function(doc) {
     doc
 }
 
-addtags <- function(doc, ngrams = 5) {
+addtags <- function(doc, ngrams = 4) {
     if(ngrams > 1)
     {
         keylen <- ngrams - 1
