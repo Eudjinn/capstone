@@ -24,16 +24,16 @@ quiz2 <- function(fit) {
         predictTMbo(fit, "If this isn't the cutest thing you've ever seen, then you must be", n = 5, a = c(0.01,0.4,0.4,0.4,1)))
     )
     predictedInt <- data.table(rbind(
-        predictTMInt(fit, "The guy in front of me just bought a pound of bacon, a bouquet, and a case of", n = 5, l = l),
-        predictTMInt(fit, "You're the reason why I smile everyday. Can you follow me please? It would mean the", n = 5, l = l),
-        predictTMInt(fit, "Hey sunshine, can you follow me and make me the", n = 5, l = l),
-        predictTMInt(fit, "Very early observations on the Bills game: Offense still struggling but the", n = 5, l = 1),
-        predictTMInt(fit, "Go on a romantic date at the", n = 5, l = 1),
-        predictTMInt(fit, "Well I'm pretty sure my granny has some old bagpipes in her garage I'll dust them off and be on my", n = 5, l = 1),
-        predictTMInt(fit, "Ohhhhh #PointBreak is on tomorrow. Love that film and haven't seen it in quite some", n = 5, l = 1),
-        predictTMInt(fit, "After the ice bucket challenge Louis will push his long wet hair out of his eyes with his little", n = 5, l = 1),
-        predictTMInt(fit, "Be grateful for the good times and keep the faith during the", n = 5, l = 1),
-        predictTMInt(fit, "If this isn't the cutest thing you've ever seen, then you must be", n = 5), l = 1)
+        predictTM(fit, "The guy in front of me just bought a pound of bacon, a bouquet, and a case of", n = 5, l = l),
+        predictTM(fit, "You're the reason why I smile everyday. Can you follow me please? It would mean the", n = 5, l = l),
+        predictTM(fit, "Hey sunshine, can you follow me and make me the", n = 5, l = l),
+        predictTM(fit, "Very early observations on the Bills game: Offense still struggling but the", n = 5, l = 1),
+        predictTM(fit, "Go on a romantic date at the", n = 5, l = 1),
+        predictTM(fit, "Well I'm pretty sure my granny has some old bagpipes in her garage I'll dust them off and be on my", n = 5, l = 1),
+        predictTM(fit, "Ohhhhh #PointBreak is on tomorrow. Love that film and haven't seen it in quite some", n = 5, l = 1),
+        predictTM(fit, "After the ice bucket challenge Louis will push his long wet hair out of his eyes with his little", n = 5, l = 1),
+        predictTM(fit, "Be grateful for the good times and keep the faith during the", n = 5, l = 1),
+        predictTM(fit, "If this isn't the cutest thing you've ever seen, then you must be", n = 5), l = 1)
     )
     probs <- data.table(rbind(
         probTM(fit, "The guy in front of me just bought a pound of bacon, a bouquet, and a case of", "pretzels"),
@@ -144,10 +144,7 @@ quizTest <- function(fit = NULL, testkeys = NULL, testwords = NULL, n = 3, ngram
         
     predicted <- sapply(testkeys, 
                         function(y) {
-                            if(interpolate)
-                                predictTMInt(model = fit, phrase = y, n = n, ngrams = ngrams, l = l)
-                            else
-                                predictTM(model = fit, phrase = y, n = n, ngrams = ngrams)
+                            predictTM(model = fit, phrase = y, n = n, ngrams = ngrams, interpolate = interpolate, l = l)
                         })
     
     predicted <- t(as.matrix(predicted, n))

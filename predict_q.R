@@ -196,53 +196,7 @@ trainTM <- function(t = NULL,
 }
 
 # REWRITE
-predictTM <- function(model, phrase, n = 1, ngrams = 4) {
-    # stupid protection from phrases with less then 4 words.
-    # need to be rewritten
-    dummy <- "<notaword> <notaword> <notaword> <notaword>"
-    phrase <- tolower(phrase)
-    phrase <- paste(dummy, phrase)
-
-#    s <- unlist(strsplit(phrase, split = " "))
-#    s.length <- length(s)
-    
-#    substr <- character(ngrams - 1)
-#    substr <- sapply(1:(ngrams - 1), function(i) {
-#        substr <- s[(s.length - ngrams + i + 1)]
-#        substr
-#    })
-
-    key <- sapply(1:(ngrams - 1), function(i) {
-        key <- getLastNWords(phrase, i)
-        key
-    })
-
-#    predicted.word <- model$dts[[5]][key[4]][order(-Prob)][1:n]
-#    nres <- sum(!is.na(predicted.word$Word)) 
-#    if(nres < n) {
-#        predicted.word <- rbind(predicted.word[complete.cases(predicted.word), ],
-#                                model$dts[[4]][key[3]][order(-Prob)][1:n])
-    predicted.word <- model$dts[[4]][key[3]][order(-Prob)][1:n] # remove and uncomment to go back to 5-gram
-        nres <- sum(!is.na(predicted.word$Word))
-        if(nres < n) {
-            predicted.word <- rbind(predicted.word[complete.cases(predicted.word), ],
-                                    model$dts[[3]][key[2]][order(-Prob)][1:n])
-            nres <- sum(!is.na(predicted.word$Word))
-            if(nres < n) {
-                predicted.word <- rbind(predicted.word[complete.cases(predicted.word), ],
-                                        model$dts[[2]][key[1]][order(-Prob)][1:n])
-                nres <- sum(!is.na(predicted.word$Word))
-                if(nres < n){
-                    predicted.word <- rbind(predicted.word[complete.cases(predicted.word), ],
-                                            model$dts[[1]][order(-Prob)][1:n])
-                }
-            }
-        }
-#    } # 5-gram
-    predicted.word$Word[1:n]
-}
-
-predictTMInt <- function(model, phrase, n = 1, ngrams = 4, l = c(0.1, 0.15, 0.3, 0.45)) {
+predictTM <- function(model, phrase, n = 1, ngrams = 4, interpolate = FALSE, l = c(0.1, 0.15, 0.3, 0.45)) {
     # stupid protection from phrases with less then 4 words.
     # need to be rewritten
     dummy <- "<notaword> <notaword> <notaword> <notaword>"
@@ -286,73 +240,34 @@ predictTMInt <- function(model, phrase, n = 1, ngrams = 4, l = c(0.1, 0.15, 0.3,
         }
 #    } # 5-gram
     # clear vector of potential predictions from NAs
+    # it is ordered by probabilities already during backoff but with higher-level n-gram priority
+    # so there is a chance that probability of first words in this vector have lower probability
+    # for stupid backoff this is the answer already.
     predicted.Word <- predicted.Word[!is.na(predicted.Word)]
-    # create vector to store interpolated probabilities for each Word
-    predicted.iProbs <- numeric(length(predicted.Word))
-    # create vector for probabilities of a Word in each n-gram model
-    probs <- numeric(ngrams)
-    for(i in 1:length(predicted.Word)) {
-#        probs[5] <- model$dts[[5]][key[4]][Word == predicted.Word[i]]$Prob[1]
-        probs[4] <- as.numeric(model$dts[[4]][.(key[3],predicted.Word[i])]$Prob[1])
-        probs[3] <- as.numeric(model$dts[[3]][.(key[2],predicted.Word[i])]$Prob[1])
-        probs[2] <- as.numeric(model$dts[[2]][.(key[1],predicted.Word[i])]$Prob[1])
-        probs[1] <- as.numeric(model$dts[[1]][.(predicted.Word[i])]$Prob[1])
-        # not all the combinations of phrase and Word were found in all n-gram models
-        probs[is.na(probs)] <- 0
-        
-        predicted.iProbs[i] <- sum(probs * l)
+    # in case interpolation is needed
+    if(interpolate) {
+        # create vector to store interpolated probabilities for each Word
+        predicted.iProbs <- numeric(length(predicted.Word))
+        # create vector for probabilities of a Word in each n-gram model
+        probs <- numeric(ngrams)
+        for(i in 1:length(predicted.Word)) {
+    #        probs[5] <- model$dts[[5]][key[4]][Word == predicted.Word[i]]$Prob[1]
+            probs[4] <- as.numeric(model$dts[[4]][.(key[3],predicted.Word[i])]$Prob[1])
+            probs[3] <- as.numeric(model$dts[[3]][.(key[2],predicted.Word[i])]$Prob[1])
+            probs[2] <- as.numeric(model$dts[[2]][.(key[1],predicted.Word[i])]$Prob[1])
+            probs[1] <- as.numeric(model$dts[[1]][.(predicted.Word[i])]$Prob[1])
+            # not all the combinations of phrase and Word were found in all n-gram models
+            probs[is.na(probs)] <- 0
+            
+            predicted.iProbs[i] <- sum(probs * l)
+        }
+        # data frame with results
+        predicted <- data.frame(Word = predicted.Word, 
+                                iprob = predicted.iProbs, 
+                                stringsAsFactors = FALSE)
+        predicted.Word <- predicted[order(predicted$iprob, decreasing = TRUE), ][1:n, ]$Word
     }
-    predicted <- data.frame(Word = predicted.Word, 
-                            iprob = predicted.iProbs, 
-                            stringsAsFactors = FALSE)
-    # data frame with results
-    predicted[order(predicted$iprob, decreasing = TRUE), ][1:n, ]$Word
-}
-
-# WILL NOT WORK WITH 4-GRAM
-predictTMbo <- function(model, phrase, n = 1, ngrams = 4,  a = c(1, 1, 1, 1, 1)) {
-    # stupid protection from phrases with less then 4 words.
-    # need to be rewritten
-    dummy <- "<notaword> <notaword> <notaword> <notaword>"
-    phrase <- paste(dummy, phrase)
-    phrase.four <- getLastNWords(phrase, 4)
-    phrase.three <- getLastNWords(phrase, 3)
-    phrase.two <- getLastNWords(phrase, 2)
-    phrase.one <- getLastNWords(phrase, 1)
-    predicted.id <- 1:n #which.max(prob)
-
-    predicted.word5 <- model$dts[[5]][phrase.four, nomatch = 0][, BOProb := Prob][order(-Prob)][predicted.id]
-    predicted.word4 <- model$dts[[4]][phrase.three, nomatch = 0][, BOProb := Prob][order(-Prob)][predicted.id]
-    predicted.word3 <- model$dts[[3]][phrase.two, nomatch = 0][, BOProb := Prob][order(-Prob)][predicted.id]
-    predicted.word2 <- model$dts[[2]][phrase.one, nomatch = 0][, BOProb := Prob][order(-Prob)][predicted.id]
-    predicted.word1 <- model$dts[[1]][order(-Prob)][predicted.id, BOProb := Prob][predicted.id]
-    
-    if(!is.na(predicted.word5$Word[1])) {
-        predicted.word4 <- predicted.word4[, BOProb := Prob * a[4]]
-        predicted.word <- rbind(predicted.word5, 
-                                predicted.word4)
-    }
-    else if(!is.na(predicted.word4$Word[1])) {
-        predicted.word3 <- predicted.word3[, BOProb := Prob * a[3]]
-        predicted.word <- rbind(predicted.word4, 
-                                predicted.word3)
-    }
-    else if(!is.na(predicted.word3$Word[1])) {
-        predicted.word2 <- predicted.word2[, BOProb := Prob * a[2]]
-        predicted.word <- rbind(predicted.word3, 
-                                predicted.word2)
-    }
-    else if(!is.na(predicted.word2$Word[1])) {
-        predicted.word1 <- predicted.word1[, BOProb := Prob * a[1]]
-        predicted.word <- rbind(predicted.word2, 
-                                predicted.word1)
-    }
-    else 
-        predicted.word <- predicted.word1
-    
-    predicted.word <- predicted.word[!is.na(BOProb)][order(-BOProb)][predicted.id]
-
-    predicted.word$Word
+    predicted.Word
 }
 
 # WILL NOT WORK WITH 4-GRAM

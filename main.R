@@ -64,5 +64,5 @@ tr.Ak.trim <- testTM(fit.Ak.trim, testlist, n = 3, maxitems = 1000, ngrams = ngr
 q2 <- quizTest(fit = fit.Ak.trim, testkeys = q2.keys, testwords = q2.words, n = 10, ngrams = 4, interpolate = FALSE, l = c(0.005, 0.095, 0.1, 0.8))
 q3 <- quizTest(fit = fit.Ak.trim, testkeys = q3.keys, testwords = q3.words, n = 10, ngrams = 4, interpolate = FALSE, l = c(0.005, 0.095, 0.1, 0.8))
 
-predictTMInt(model = fit.Ak.trim, phrase = "see arctic monkeys this", n = 5, ngrams = 4, l = c(0.0005, 0.1495, 0.35, 0.5))
+predictTM(model = fit.Ak.trim, phrase = "see arctic monkeys this", n = 5, ngrams = 4, interpolate = TRUE, l = c(0.0005, 0.1495, 0.35, 0.5))
 
