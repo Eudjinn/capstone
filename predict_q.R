@@ -217,57 +217,71 @@ predictTM <- function(model, phrase, n = 1, ngrams = 4, interpolate = FALSE, l =
         key
     })
     
-#    predicted.Word <- model$dts[[5]][key[4]][order(-Prob)][1:n]
-#    nres <- sum(!is.na(predicted.Word$Word)) 
+#    predicted.Words <- model$dts[[5]][key[4]][order(-Prob)][1:n]
+#    nres <- sum(!is.na(predicted.Words$Word)) 
 #    if(nres < n) {
-#        predicted.Word <- rbind(predicted.Word[complete.cases(predicted.Word), ],
+#        predicted.Words <- rbind(predicted.Words[complete.cases(predicted.Words), ],
 #                                model$dts[[4]][key[3]][order(-Prob)][1:n])
-    predicted.Word <- as.character(model$dts[[4]][key[3]][order(-Prob)][1:n]$Word) # remove to go back to 5-gram and uncomment
-        nres <- sum(!is.na(predicted.Word))
+    getWords <- function(ngram.i, nres) {
         if(nres < n) {
-            predicted.Word <- c(predicted.Word,
-                                as.character(model$dts[[3]][key[2]][order(-Prob)][1:n]$Word))
-            nres <- sum(!is.na(predicted.Word))
-            if(nres < n) {
-                predicted.Word <- c(predicted.Word,
-                                    as.character(model$dts[[2]][key[1]][order(-Prob)][1:n]$Word))
-                nres <- sum(!is.na(predicted.Word))
-                if(nres < n){
-                    predicted.Word <- c(predicted.Word,
-                                        as.character(model$dts[[1]][order(-Prob)][1:n]$Word))
-                }
-            }
-        }
-#    } # 5-gram
-    # clear vector of potential predictions from NAs
-    # it is ordered by probabilities already during backoff but with higher-level n-gram priority
-    # so there is a chance that probability of first words in this vector have lower probability
-    # for stupid backoff this is the answer already.
-    predicted.Word <- predicted.Word[!is.na(predicted.Word)]
+            if(ngram.i > 1) {
+                newwords <- as.character(model$dts[[ngram.i]][key[ngram.i-1]][order(-Prob)][1:n]$Word) # remove to go back to 5-gram and uncomment   
+                nwords <- sum(!is.na(newwords))
+                words <- c(newwords, getWords(ngram.i = ngram.i-1, nres = nwords))
+            } else if(ngram.i == 1)
+                words <- c(words,
+                           as.character(model$dts[[ngram.i]][order(-Prob)][1:n]$Word))
+            # clear vector of potential predictions from NAs
+            # it is ordered by probabilities already during backoff but with higher-level n-gram priority
+            # so there is a chance that probability of first words in this vector have lower probability
+            # for stupid backoff this is the answer already.
+            words <- words[!is.na(words)]
+        } else
+            words <- character()
+        words
+    }
+    
+    # run recursion over available n-grams
+    predicted.Words <- getWords(ngram.i = ngrams, nres = 0)
+    
     # in case interpolation is needed
     if(interpolate) {
         # create vector to store interpolated probabilities for each Word
-        predicted.iProbs <- numeric(length(predicted.Word))
+        predicted.IProbs <- numeric(length(predicted.Words))
         # create vector for probabilities of a Word in each n-gram model
-        probs <- numeric(ngrams)
-        for(i in 1:length(predicted.Word)) {
-    #        probs[5] <- model$dts[[5]][key[4]][Word == predicted.Word[i]]$Prob[1]
-            probs[4] <- as.numeric(model$dts[[4]][.(key[3],predicted.Word[i])]$Prob[1])
-            probs[3] <- as.numeric(model$dts[[3]][.(key[2],predicted.Word[i])]$Prob[1])
-            probs[2] <- as.numeric(model$dts[[2]][.(key[1],predicted.Word[i])]$Prob[1])
-            probs[1] <- as.numeric(model$dts[[1]][.(predicted.Word[i])]$Prob[1])
+        
+        # recursive function to get probabilities in each n-gram model
+        # higher n-gram probability at the last place, lower at the first,
+        # to be consistent with straight indexing if needed.
+        getIProbs <- function(word, ngram.i) {
+            probs <- numeric()
+            if(ngram.i > 1) {
+                probs <- as.numeric(model$dts[[ngram.i]][.(key[ngram.i-1], word)]$Prob[1])
+                # place higher order n-gram probabilities at the end
+                probs <- c(getIProbs(word, ngram.i-1), probs)
+            }
+            else if(ngram.i == 1)
+                probs <- c(as.numeric(model$dts[[ngram.i]][.(word)]$Prob[1]), probs)
             # not all the combinations of phrase and Word were found in all n-gram models
             probs[is.na(probs)] <- 0
-            
-            predicted.iProbs[i] <- sum(probs * l)
+            probs
+        }
+        
+        # iterate over number of selected words to get their probabilities 
+        # in each n-gram model to calculate interpolation
+        for(i in 1:length(predicted.Words)) {
+            # run recursion over all n-gram models for each word
+            probs <- getIProbs(predicted.Words[i], ngrams)
+            predicted.IProbs[i] <- sum(probs * l)
         }
         # data frame with results
-        predicted <- data.frame(Word = predicted.Word, 
-                                iprob = predicted.iProbs, 
+        predicted <- data.frame(Word = predicted.Words, 
+                                iprob = predicted.IProbs, 
                                 stringsAsFactors = FALSE)
-        predicted.Word <- predicted[order(predicted$iprob, decreasing = TRUE), ][1:n, ]$Word
+        predicted.Words <- predicted[order(predicted$iprob, decreasing = TRUE), ]$Word
     }
-    predicted.Word
+    # cut n words from the top only at the end of selection
+    predicted.Words[1:n]
 }
 
 # WILL NOT WORK WITH 4-GRAM
