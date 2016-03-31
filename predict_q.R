@@ -222,12 +222,14 @@ predictTM <- function(model, phrase, n = 1, ngrams = 4, interpolate = FALSE, l =
 #    if(nres < n) {
 #        predicted.Words <- rbind(predicted.Words[complete.cases(predicted.Words), ],
 #                                model$dts[[4]][key[3]][order(-Prob)][1:n])
-    getWords <- function(ngram.i, nres) {
-        if(nres < n) {
+    getWords <- function(ngram.i, words) {
+        nwords <- sum(!is.na(words))
+        if(nwords < n) {
             if(ngram.i > 1) {
                 newwords <- as.character(model$dts[[ngram.i]][key[ngram.i-1]][order(-Prob)][1:n]$Word) # remove to go back to 5-gram and uncomment   
-                nwords <- sum(!is.na(newwords))
-                words <- c(newwords, getWords(ngram.i = ngram.i-1, nres = nwords))
+                words <- unique(c(words, newwords)) # remove words already suggested
+                words <- words[!is.na(words)] # remove NA to get more suggestions
+                words <- getWords(ngram.i = ngram.i-1, words)
             } else if(ngram.i == 1)
                 words <- c(words,
                            as.character(model$dts[[ngram.i]][order(-Prob)][1:n]$Word))
@@ -236,16 +238,15 @@ predictTM <- function(model, phrase, n = 1, ngrams = 4, interpolate = FALSE, l =
             # so there is a chance that probability of first words in this vector have lower probability
             # for stupid backoff this is the answer already.
             words <- words[!is.na(words)]
-        } else 
-            words <- character() # need to return when nres >= n 
+        } 
         # it is important to explicitly convert to character because
         # when sometimes it decides to return list with function, when
         # all values returned are NA. 
         as.character(words)
     }
     
-    # run recursion over available n-grams
-    predicted.Words <- getWords(ngram.i = ngrams, nres = 0)
+    # run recursion over available n-grams, empty words list for the beginning
+    predicted.Words <- getWords(ngram.i = ngrams, character())
 
     # in case interpolation is needed
     if(interpolate) {
