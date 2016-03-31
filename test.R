@@ -24,38 +24,23 @@ testTM <- function(model, testlist, maxitems, n = 1, ngrams = 4, a = NULL, inter
 
     ###
     #predicted <- parSapply(cl, testpairs, function(y) predictWord1(y, freq.dt.uni, freq.dt.bi, freq.dt.tri, freq.dt.four, freq.dt.five, 1))
-    if(!interpolate & is.null(a)) {
-        cat("Running predictTM...\n")
-        if(parallel)
-            predicted <- parSapply(cl, testpairs, 
-                                function(y) predictTM(model = model, phrase = y, n = n, ngrams = ngrams))
-        else
-            predicted <- sapply(testpairs, 
-                                   function(y) predictTM(model = model, phrase = y, n = n, ngrams = ngrams))
-    }
-    else if(!is.null(a) & ! interpolate) {
-        cat("Running predictTMbo...\n")
-        if(parallel)
-            predicted <- parSapply(cl, testpairs, 
-                            function(y) predictTMbo(model = model, phrase = y, n = n, ngrams = ngrams, a))
-        else
-            predicted <- sapply(testpairs, 
-                                   function(y) predictTMbo(model = model, phrase = y, n = n, ngrams = ngrams, a))
-        
-    }
-    else if(interpolate & is.null(a)) {
-        cat("Running predictTMInt...\n")
-        if(parallel)
-            predicted <- parSapply(cl, testpairs, 
-                                   function(y) predictTMInt(model = model, phrase = y , n = n, ngrams = ngrams, l = l))
-        else
-            predicted <- sapply(testpairs, 
-                                function(y) predictTMInt(model = model, phrase = y , n = n, ngrams = ngrams, l = l))
-        
-    }
+    cat("Running predictTM...\n")
+    if(parallel)
+        predicted <- parSapply(cl, testpairs, 
+                            function(y) predictTM(model = model, 
+                                                  phrase = y, 
+                                                  n = n, 
+                                                  ngrams = ngrams, 
+                                                  interpolate = interpolate,
+                                                  l = l))
     else
-        cat("Wrong test parameters!")
-    
+        predicted <- sapply(testpairs, 
+                               function(y) predictTM(model = model, 
+                                                     phrase = y, 
+                                                     n = n, 
+                                                     ngrams = ngrams, 
+                                                     interpolate = interpolate,
+                                                     l = l))
     predicted <- t(as.matrix(predicted, n))
     predicted[is.na(predicted)] <- "<unk>"
 

@@ -236,14 +236,17 @@ predictTM <- function(model, phrase, n = 1, ngrams = 4, interpolate = FALSE, l =
             # so there is a chance that probability of first words in this vector have lower probability
             # for stupid backoff this is the answer already.
             words <- words[!is.na(words)]
-        } else
-            words <- character()
-        words
+        } else 
+            words <- character() # need to return when nres >= n 
+        # it is important to explicitly convert to character because
+        # when sometimes it decides to return list with function, when
+        # all values returned are NA. 
+        as.character(words)
     }
     
     # run recursion over available n-grams
     predicted.Words <- getWords(ngram.i = ngrams, nres = 0)
-    
+
     # in case interpolation is needed
     if(interpolate) {
         # create vector to store interpolated probabilities for each Word
@@ -266,7 +269,6 @@ predictTM <- function(model, phrase, n = 1, ngrams = 4, interpolate = FALSE, l =
             probs[is.na(probs)] <- 0
             probs
         }
-        
         # iterate over number of selected words to get their probabilities 
         # in each n-gram model to calculate interpolation
         for(i in 1:length(predicted.Words)) {

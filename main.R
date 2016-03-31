@@ -14,7 +14,7 @@ no_cores <- max(1, detectCores() - 1)
 options(mc.cores = no_cores)
 #options(datatable.verbose=TRUE)
 # number of rows from original docs to use
-sample.percent <- 0.3
+sample.percent <- 0.5
 # proportion of training set
 train.percent <- 0.7
 #parallel processing
@@ -61,8 +61,8 @@ test <- cleanEnds(test)
 testlist <- makeTestList(test, maxdocs = 500, ngrams = ngrams)
 tr.Ak.trim <- testTM(fit.Ak.trim, testlist, n = 3, maxitems = 1000, ngrams = ngrams, interpolate = TRUE, l = c(0.1, 0.15, 0.3, 0.45))
 
-q2 <- quizTest(fit = fit.Ak.trim, testkeys = q2.keys, testwords = q2.words, n = 10, ngrams = 4, interpolate = FALSE, l = c(0.005, 0.095, 0.1, 0.8))
-q3 <- quizTest(fit = fit.Ak.trim, testkeys = q3.keys, testwords = q3.words, n = 10, ngrams = 4, interpolate = FALSE, l = c(0.005, 0.095, 0.1, 0.8))
+q2 <- quizTest(fit = fit.Ak.trim, testkeys = q2.keys, testwords = q2.words, n = 3, ngrams = 4, interpolate = FALSE, l = c(0.005, 0.095, 0.1, 0.8))
+q3 <- quizTest(fit = fit.Ak.trim, testkeys = q3.keys, testwords = q3.words, n = 3, ngrams = 4, interpolate = FALSE, l = c(0.005, 0.095, 0.1, 0.8))
 
 predictTM(model = fit.Ak.trim, phrase = "see arctic monkeys this", n = 5, ngrams = 4, interpolate = TRUE, l = c(0.0005, 0.1495, 0.35, 0.5))
 
