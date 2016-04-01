@@ -72,6 +72,7 @@ makeDTs <- function(dtms = NULL, ngrams = 4) {
                          # Freq = docfreq(dtm.l$onegram, 
                          # scheme = "count")),
                          Freq = colSums(dtms[[i]]))
+        dt
     })
     dts
 }
@@ -110,7 +111,9 @@ smoothDTs <- function(dts = NULL, ngrams = 4, smoothingType = "none", smoothK = 
         FofFt.len <- length(FofFt)
         # find a place where to stop like this:
         FofFt.diff <- FofFt[1:FofFt.len-1] - FofFt[2:FofFt.len]
-        t <- min(which(FofFt.diff <= 0)) - 1
+        t <- min(which(FofFt.diff <= 0)) - 2
+        # just in case it is even below zero in very unprobable case
+        if(t < 2) t <- 1
         # if irregularities start too early compared to k parameter
         if(k > t) k <- t
 
@@ -129,7 +132,7 @@ smoothDTs <- function(dts = NULL, ngrams = 4, smoothingType = "none", smoothK = 
             setkey(dt, Key)
             dt[, SumFreq := sum(Freq), by = Key]
             dt[, SumFreqSmooth := sum(FreqSmooth), by = Key]
-            dt[, Prob := FreqSmooth/SumFreqSmooth] # Dividing by SumFreq causes some probabilities to be more than 1
+            dt[, Prob := FreqSmooth/SumFreq] # Dividing by SumFreq causes some probabilities to be more than 1
         }
         setkey(dt, Key, Word)
         dt
@@ -154,12 +157,12 @@ smoothDTs <- function(dts = NULL, ngrams = 4, smoothingType = "none", smoothK = 
 
 cleanDTs <- function(dts = NULL, ngrams = 4, trimFeatures = FALSE, minFreq = 2) {
     dts <- lapply(1:ngrams, function(i) {
-        # EXPERIMENTAL: Remove starts and ends from tables:
-        tagskey <- grep("ss-ss|ee-ee", dts[[i]]$Key)
+        # EXPERIMENTAL: Remove starts and ends from tables and other tags:
+        tagskey <- grep("ss-ss|ee-ee|ww-ww", dts[[i]]$Key)
         if(length(tagskey) > 0)
             dts[[i]] <- dts[[i]][-tagskey]
         
-        tagsword <- grep("ss-ss|ee-ee", dts[[i]]$Word)
+        tagsword <- grep("ss-ss|ee-ee|ww-ww", dts[[i]]$Word)
         if(length(tagsword) > 0)
             dts[[i]] <- dts[[i]][-tagsword]
 
@@ -193,11 +196,10 @@ trainTM <- function(t = NULL,
                      trimFeatures = trimFeatures, 
                      minCount = minCount, 
                      minDoc = minDoc)
-
     # make dts from dtms
     dts <- makeDTs(dtms = dtms, 
                    ngrams = ngrams)
-        
+    
     # apply smoothing
     dts <- smoothDTs(dts, 
                      smoothingType = smoothingType, 
@@ -209,7 +211,7 @@ trainTM <- function(t = NULL,
                     trimFeatures = trimFeatures,
                     minFreq = minCount)
     # return the model
-    fit <- list(dtms = dtms,
+    fit <- list(#dtms = dtms,
                 dts = dts)
     fit
 }
