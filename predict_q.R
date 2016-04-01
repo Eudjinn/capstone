@@ -36,10 +36,10 @@ makeDTMs <- function(t = NULL, ngrams = 4, trimFeatures = FALSE, minCount = 3, m
         # add tags for tokenizing
         t.tagged <- addTags(t, ngrams = i)
         dtm <- dfm(t.tagged, ngrams = i, concatenator = " ")
-        if(trimFeatures) {
+ #       if(trimFeatures) {
             # trim rare terms
-            dtm <- trim(dtm, minCount = minCount, minDoc = minDoc)
-        }
+ #           dtm <- trim(dtm, minCount = minCount, minDoc = minDoc)
+ #       }
         dtm
     })
     dtms
@@ -79,10 +79,10 @@ makeDTs <- function(dtms = NULL, ngrams = 4) {
 smoothDTs <- function(dts = NULL, ngrams = 4, smoothingType = "none", smoothK = 1) {
     cat("SMOOTH DTs, Smoothing Type:", smoothingType, ", k =", smoothK, "\n")
     # Add-k smoothing
-    smooth.n <- function(dt, k = 1, ngram = 1, V = 1) {
+    smooth.n <- function(dt, ngram.i = 1, k = 1, V = 1) {
         N <- sum(dt$Freq)
         V <- nrow(dt)
-        if(ngram == 1) {
+        if(ngram.i == 1) {
             dt[, SumFreq := sum(Freq)]
             dt[, Prob := (Freq + k)/(N + k*V)]
             dt[, FreqSmooth := Prob * N]
@@ -98,26 +98,34 @@ smoothDTs <- function(dts = NULL, ngrams = 4, smoothingType = "none", smoothK = 
     }
     
     # EXPERIMENTAL Good-Turing Smoothing.
-    smooth.n.gt <- function(dt, k = 1, ngram = 1, V = 1) {
+    smooth.n.gt <- function(dt, ngram.i = 1, k = 1, V = 1) {
         # approximation is needed for frequencies that are not present
-        require(randomForest)
-        gt <- data.frame(Freq = as.integer(names(table(dt$Freq))), 
-                         FOfF = as.integer(table(dt$Freq)))
-        gt.fit <- randomForest(FOfF ~ Freq, data = gt)
-        dt$FofF <- predict(gt.fit, data.frame(Freq = dt$Freq))
-        dt$FofF1 <- predict(gt.fit, data.frame(Freq = (dt$Freq + k)))
-        
+#        require(randomForest)
+#        gt <- data.frame(Freq = as.integer(names(table(dt$Freq))), 
+#                         FOfF = as.integer(table(dt$Freq)))
+#        gt.fit <- randomForest(FOfF ~ Freq, data = gt)
+#        dt$FofF <- predict(gt.fit, data.frame(Freq = dt$Freq))
+#        dt$FofF1 <- predict(gt.fit, data.frame(Freq = (dt$Freq + k)))
+        FofFt <- tabulate(dt$Freq)
+        # find first zero-frequence - thats when gaps start
+        t <- min(which(FofFt == 0)) - 1
+        if(t < 2)
+            t <- 1 # just nothing will be done to Freq
+
         N <- sum(dt$Freq)
         V <- nrow(dt)
-        if(ngram == 1) {
-            dt[, FreqSmooth := (Freq + k) * FofF1/FofF]
+        
+        dt[Freq <= k, FreqSmooth := (((Freq+1)*FofFt[Freq+1]/FofFt[Freq])-((Freq*(k+1)*FofFt[k+1])/FofFt[1]))/(1-(k+1)*FofFt[k+1]/FofFt[1])]
+        dt[Freq >= k & Freq < t, FreqSmooth := (Freq+1)*FofFt[Freq+1]/FofFt[Freq]]
+        dt[Freq >= t, FreqSmooth := Freq] # for higher frequency just leave as is
+
+        if(ngram.i == 1) {
             dt[, SumFreqSmooth := sum(FreqSmooth)] # not needed actually, added only for consistency to match columns in ngram > 1
-            dt[, Prob := FreqSmooth/(N + k*V)]
+            dt[, Prob := FreqSmooth/N]
         } else {
-            dt[, FreqSmooth := (Freq + k) * FofF1/FofF]
             setkey(dt, Key)
             dt[, SumFreqSmooth := sum(FreqSmooth), by = Key]
-            dt[, Prob := FreqSmooth/(SumFreqSmooth + k*V)]
+            dt[, Prob := FreqSmooth/(SumFreqSmooth * N)]
         }
         setkey(dt, Key, Word)
         dt
@@ -128,19 +136,19 @@ smoothDTs <- function(dts = NULL, ngrams = 4, smoothingType = "none", smoothK = 
 
     dts <- lapply(1:ngrams, function(i) {
         if(smoothingType == "Ak")
-            dt <- smooth.n(dts[[i]], k = smoothK, V = voc.size)
+            dt <- smooth.n(dts[[i]], ngram.i = i, k = smoothK, V = voc.size)
         else if(smoothingType == "GT")
-            dt <- smooth.n.gt(dts[[i]], k = smoothK, V = voc.size)
+            dt <- smooth.n.gt(dts[[i]], ngram.i = i, k = smoothK, V = voc.size)
         else {
             # if no smoothing selected - calculate probability with k = 0.
-            dt <- smooth.n(dts[[i]], k = 0)
+            dt <- smooth.n(dts[[i]], ngram.i = i, k = 0)
         }
         dt
     })
     dts
 }
 
-cleanDTs <- function(dts = NULL, ngrams = 4) {
+cleanDTs <- function(dts = NULL, ngrams = 4, trimFeatures = FALSE, minFreq = 2) {
     dts <- lapply(1:ngrams, function(i) {
         # EXPERIMENTAL: Remove starts and ends from tables:
         tagskey <- grep("ss-ss|ee-ee", dts[[i]]$Key)
@@ -150,7 +158,12 @@ cleanDTs <- function(dts = NULL, ngrams = 4) {
         tagsword <- grep("ss-ss|ee-ee", dts[[i]]$Word)
         if(length(tagsword) > 0)
             dts[[i]] <- dts[[i]][-tagsword]
-        dts[[i]]
+
+        # get rid of rare features:
+        if(trimFeatures)
+            dts[[i]] <- dts[[i]][Freq > minFreq]
+        
+        dts[[i]] # return result
     })
     dts
 }
@@ -188,7 +201,9 @@ trainTM <- function(t = NULL,
                      ngrams = ngrams)
     
     dts <- cleanDTs(dts,
-                    ngrams = ngrams)
+                    ngrams = ngrams,
+                    trimFeatures = trimFeatures,
+                    minFreq = minCount)
     # return the model
     fit <- list(dtms = dtms,
                 dts = dts)
