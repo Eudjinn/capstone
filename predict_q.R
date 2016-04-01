@@ -2,11 +2,11 @@
 ## Loading data
 readData <- function() {
     blogs <- readLines("final/en_US/en_US.blogs.txt", encoding = "UTF-8", skipNul = TRUE)
-    news <- readLines("final/en_US/en_US.news.txt", encoding = "UTF-8", skipNul = TRUE)
-    twitter <- readLines("final/en_US/en_US.twitter.txt", encoding = "UTF-8", skipNul = TRUE)
+#    news <- readLines("final/en_US/en_US.news.txt", encoding = "UTF-8", skipNul = TRUE)
+#    twitter <- readLines("final/en_US/en_US.twitter.txt", encoding = "UTF-8", skipNul = TRUE)
     
-    all <- c(blogs, news, twitter)
-#    all <- blogs
+#    all <- c(blogs, news, twitter)
+    all <- blogs
     all
 }
 
@@ -277,6 +277,89 @@ predictTM <- function(model, phrase, n = 1, ngrams = 4, interpolate = FALSE, l =
             probs <- getIProbs(predicted.Words[i], ngrams)
             predicted.IProbs[i] <- sum(probs * l)
         }
+        # data frame with results
+        predicted <- data.frame(Word = predicted.Words, 
+                                iprob = predicted.IProbs, 
+                                stringsAsFactors = FALSE)
+        predicted.Words <- predicted[order(predicted$iprob, decreasing = TRUE), ]$Word
+    }
+    # cut n words from the top only at the end of selection
+    predicted.Words[1:n]
+}
+
+predictTM1 <- function(model, phrase, n = 1, ngrams = 4, interpolate = FALSE, l = c(0.1, 0.15, 0.3, 0.45)) {
+    # stupid protection from phrases with less then 4 words.
+    # need to be rewritten
+    dummy <- "<notaword> <notaword> <notaword> <notaword>"
+    phrase <- tolower(phrase)
+    phrase <- paste(dummy, phrase)
+    
+    #    s <- unlist(strsplit(phrase, split = " "))
+    #    s.length <- length(s)
+    
+    #    substr <- character(ngrams - 1)
+    #    substr <- sapply(1:(ngrams - 1), function(i) {
+    #        substr <- s[(s.length - ngrams + i + 1)]
+    #        substr
+    #    })
+    
+    key <- sapply(1:(ngrams - 1), function(i) {
+        key <- getLastNWords(phrase, i)
+        key
+    })
+    
+    #    predicted.Words <- model$dts[[5]][key[4]][order(-Prob)][1:n]
+    #    nres <- sum(!is.na(predicted.Words$Word)) 
+    #    if(nres < n) {
+    #        predicted.Words <- rbind(predicted.Words[complete.cases(predicted.Words), ],
+    #                                model$dts[[4]][key[3]][order(-Prob)][1:n])
+    getWords <- function(ngram.i, words) {
+        nwords <- sum(!is.na(words))
+        if(nwords < n) {
+            if(ngram.i > 1) {
+                newwords <- as.character(model$dts[[ngram.i]][key[ngram.i-1]][order(-Prob)][1:n]$Word) # remove to go back to 5-gram and uncomment   
+                words <- unique(c(words, newwords)) # remove words already suggested
+                words <- words[!is.na(words)] # remove NA to get more suggestions
+                words <- getWords(ngram.i = ngram.i-1, words)
+            } else if(ngram.i == 1)
+                words <- c(words,
+                           as.character(model$dts[[ngram.i]][order(-Prob)][1:n]$Word))
+            # clear vector of potential predictions from NAs
+            # it is ordered by probabilities already during backoff but with higher-level n-gram priority
+            # so there is a chance that probability of first words in this vector have lower probability
+            # for stupid backoff this is the answer already.
+            words <- words[!is.na(words)]
+        } 
+        # it is important to explicitly convert to character because
+        # when sometimes it decides to return list with function, when
+        # all values returned are NA. 
+        as.character(words)
+    }
+    
+    # run recursion over available n-grams, empty words list for the beginning
+    predicted.Words <- getWords(ngram.i = ngrams, character())
+    
+    # in case interpolation is needed
+    if(interpolate) {
+        # create vector to store interpolated probabilities for each Word
+        predicted.IProbs <- numeric(length(predicted.Words))
+        # create vector for probabilities of a Word in each n-gram model
+        probs <- numeric(ngrams)
+        # iterate over number of selected words to get their probabilities 
+        # in each n-gram model to calculate interpolation
+        for(i in 1:length(predicted.Words)) {
+            # run recursion over all n-gram models for each word
+#            probs <- getIProbs(predicted.Words[i], ngrams)
+#            predicted.IProbs[i] <- sum(probs * l)
+            for(ngram.i in ngrams : 1) {
+                if(ngram.i > 1)
+                    probs[ngram.i] <- as.numeric(model$dts[[ngram.i]][.(key[ngram.i-1],predicted.Words[i])]$Prob[1])
+                else if(ngram.i == 1)
+                    probs[ngram.i] <- as.numeric(model$dts[[ngram.i]][.(predicted.Words[i])]$Prob[1])
+                }
+            probs[is.na(probs)] <- 0
+            predicted.IProbs[i] <- sum(probs * l)
+            }
         # data frame with results
         predicted <- data.frame(Word = predicted.Words, 
                                 iprob = predicted.IProbs, 
