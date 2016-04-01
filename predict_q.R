@@ -107,10 +107,12 @@ smoothDTs <- function(dts = NULL, ngrams = 4, smoothingType = "none", smoothK = 
 #        dt$FofF <- predict(gt.fit, data.frame(Freq = dt$Freq))
 #        dt$FofF1 <- predict(gt.fit, data.frame(Freq = (dt$Freq + k)))
         FofFt <- tabulate(dt$Freq)
-        # find first zero-frequence - thats when gaps start
-        t <- min(which(FofFt == 0)) - 1
-        if(t < 2)
-            t <- 1 # just nothing will be done to Freq
+        FofFt.len <- length(FofFt)
+        # find a place where to stop like this:
+        FofFt.diff <- FofFt[1:FofFt.len-1] - FofFt[2:FofFt.len]
+        t <- min(which(FofFt.diff <= 0)) - 1
+        # if irregularities start too early compared to k parameter
+        if(k > t) k <- t
 
         N <- sum(dt$Freq)
         V <- nrow(dt)
@@ -120,12 +122,14 @@ smoothDTs <- function(dts = NULL, ngrams = 4, smoothingType = "none", smoothK = 
         dt[Freq >= t, FreqSmooth := Freq] # for higher frequency just leave as is
 
         if(ngram.i == 1) {
+            dt[, SumFreq := sum(Freq)] # not needed actually, added only for consistency to match columns in ngram > 1
             dt[, SumFreqSmooth := sum(FreqSmooth)] # not needed actually, added only for consistency to match columns in ngram > 1
             dt[, Prob := FreqSmooth/N]
         } else {
             setkey(dt, Key)
+            dt[, SumFreq := sum(Freq), by = Key]
             dt[, SumFreqSmooth := sum(FreqSmooth), by = Key]
-            dt[, Prob := FreqSmooth/(SumFreqSmooth * N)]
+            dt[, Prob := FreqSmooth/SumFreqSmooth] # Dividing by SumFreq causes some probabilities to be more than 1
         }
         setkey(dt, Key, Word)
         dt
