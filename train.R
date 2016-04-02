@@ -1,5 +1,5 @@
 makeDTMs <- function(t = NULL, ngrams = 4, trimFeatures = FALSE, minCount = 3, minDoc = 2) {
-    cat("MAKE DTMs, Trim Features:", trimFeatures, "\n")
+    cat("Making DTMs, Trim Features:", trimFeatures, "\n")
     require(quanteda)
     
     # dtms - document term matrix - several
@@ -18,7 +18,7 @@ makeDTMs <- function(t = NULL, ngrams = 4, trimFeatures = FALSE, minCount = 3, m
 
 # used for testing as trimming is done within makeDTM
 trimDTMs <- function(dtms = NULL, ngrams = 4, trimFeatures = FALSE, minCount = 3, minDoc = 2) {
-    cat("TRIM dtms, Trim Features: ", trimFeatures, "\n")
+    cat("Triming dtms, Trim Features: ", trimFeatures, "\n")
     require(quanteda)
     
     # dtms - document term matrix - several
@@ -35,7 +35,7 @@ trimDTMs <- function(dtms = NULL, ngrams = 4, trimFeatures = FALSE, minCount = 3
 }
 
 makeDTs <- function(dtms = NULL, ngrams = 4) {
-    cat("MAKE DTs...\n")
+    cat("Making DTs...\n")
     # dts = data table several 
     dts <- lapply(1:ngrams, function(i) {
         dt <- data.table(Key = getFirstNWords(features(dtms[[i]]), i - 1), 
@@ -110,7 +110,7 @@ smooth.n.gt <- function(dt, ngram.i = 1, k = 1, V = 1) {
 #############
 
 smoothDTs <- function(dts = NULL, ngrams = 4, smoothingType = "none", smoothK = 1) {
-    cat("SMOOTH DTs, Smoothing Type:", smoothingType, ", k =", smoothK, "\n")
+    cat("Smoothing DTs, Smoothing Type:", smoothingType, ", k =", smoothK, "\n")
     
     # Add smoothing
     # Vocabulary size is the length of onegram dt, which is the first in the list
@@ -131,6 +131,7 @@ smoothDTs <- function(dts = NULL, ngrams = 4, smoothingType = "none", smoothK = 
 }
 
 cleanDTs <- function(dts = NULL, ngrams = 4, trimFeatures = FALSE, minFreq = 2) {
+    cat("Cleaning DTs...\n")
     dts <- lapply(1:ngrams, function(i) {
         # EXPERIMENTAL: Remove starts and ends from tables and other tags:
         tagskey <- grep("ss-ss|ee-ee|ww-ww", dts[[i]]$Key)
@@ -158,7 +159,7 @@ trainTM <- function(t = NULL,
                     smoothK = 1, 
                     ngrams = 4,
                     ...) {
-    cat("TRAIN TM...", "Trim features:", trimFeatures, "Smoothing:", smoothingType, "\n")
+    cat("Training TM...", "Trim features:", trimFeatures, "Smoothing:", smoothingType, "\n")
     require(quanteda)
     
     voc.size <- 1 # will be updated from within next function
@@ -187,8 +188,8 @@ trainTM <- function(t = NULL,
         
         # EXPERIMENTAL: Remove starts and ends which came from middle of the 
         # string and mean nothing for prediction from tables:
-        tagskey <- grep("ss-ss|ee-ee|ww-ww", dt$Key)
-        tagsword <- grep("ss-ss|ee-ee|ww-ww", dt$Word)
+        tagskey <- grep("ss-ss|ee-ee", dt$Key)
+        tagsword <- grep("ss-ss|ee-ee", dt$Word)
         # remove only when both tagskey and tagsword ara tags
         remove <- intersect(tagskey, tagsword)
         if(length(remove) > 0)
@@ -209,8 +210,9 @@ trainTM <- function(t = NULL,
         
         # EXPERIMENTAL: Remove starts and ends from tables and other tags:
         # once smoothing is done, tags are not needed for prediction any more
-        tagskey <- grep("ss-ss|ee-ee|ww-ww", dt$Key)
-        tagsword <- grep("ss-ss|ee-ee|ww-ww", dt$Word)
+        tags <- "ss-ss|ee-ee|ww-ww|tm-tm|mm-mm|oo-oo|us-us|ie-ie|eg-eg|ad-ad|dr-dr|mr-mr|mrs-mrs|dc-dc|nn-nn|ys-ys"
+        tagskey <- grep(tags, dt$Key)
+        tagsword <- grep(tags, dt$Word)
         remove <- union(tagskey, tagsword)
         if(length(remove) > 0)
             dt <- dt[-remove]
@@ -241,7 +243,7 @@ if(0) { #fragmented version
                         smoothK = 1, 
                         ngrams = 4,
                         ...) {
-        cat("TRAIN TM...", "Trim features:", trimFeatures, "Smoothing:", smoothingType, "\n")
+        cat("Training TM...", "Trim features:", trimFeatures, "Smoothing:", smoothingType, "\n")
         require(quanteda)
         
         # dtms - document term matrix - several. trimming inside.

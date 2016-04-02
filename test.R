@@ -1,5 +1,14 @@
 makeTestList <- function(testset, maxdocs, ngrams = 4) {
     ndocs <- min(length(testset), maxdocs)
+    
+    tags <- "ss-ss|ee-ee|ww-ww|tm-tm|mm-mm|oo-oo|us-us|ie-ie|eg-eg|ad-ad|dr-dr|mr-mr|mrs-mrs|dc-dc|nn-nn|ys-ys"
+    testset <- gsub(tags, " ", testset)
+    
+    # collapse spaces in one space
+    testset <- gsub("[[:space:]]{2,}", " ", testset)
+    # remove spaces in the beginning and at the end
+    testset <- gsub("^ | $", "", testset)
+    
     testlist <- lapply(testset[1:ndocs], 
                       function(x) splitStringToSet(x, ngrams))
     testlist

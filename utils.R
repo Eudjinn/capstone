@@ -117,23 +117,34 @@ cleandoc <- function(doc) {
 
     doc <- tolower(doc)
 
-    # remove urls
-    doc <- gsub("https?:\\/\\/(www)?\\.?[a-z0-9\\.\\-]+(\\/?[a-z0-9\\.=\\+#&_~\\-]+)+\\/?\\??[a-z0-9=\\.\\/\\+&#_~\\-]+", "ww-ww", doc)
-    doc <- gsub("www\\.[a-z0-9\\.\\-]+(\\/?[a-z0-9\\.=\\+#&_~\\-]+)+\\/?\\??[a-z0-9=\\.\\/\\+&#_~\\-]+", "ww-ww", doc)
+    # replace urls
+    doc <- gsub("https?:\\/\\/(www)?\\.?[a-z0-9\\.\\-]+(\\/?[a-z0-9\\.=\\+#&_~\\-]+)+\\/?\\??[a-z0-9=\\.\\/\\+&#_~\\-]+", " ww-ww ", doc)
+    doc <- gsub("www\\.[a-z0-9\\.\\-]+(\\/?[a-z0-9\\.=\\+#&_~\\-]+)+\\/?\\??[a-z0-9=\\.\\/\\+&#_~\\-]+", " ww-ww ", doc)
     
-    doc <- gsub(" a\\.m\\. ", " am ", doc)
-    doc <- gsub(" p\\.m\\. ", " pm ", doc)
-    doc <- gsub(" u\\.s\\. ", " usa ", doc)
-    doc <- gsub(" i\\.e\\. ", " ie ", doc)
-    doc <- gsub(" e\\.g\\. ", " eg ", doc)
-    doc <- gsub(" etc\\. ", " etc ", doc)
-    doc <- gsub(" d\\.c\\. ", " dc ", doc)
-    doc <- gsub(" dr\\. ", " dr ", doc)
-    doc <- gsub(" mr\\. ", " mr ", doc)
-    doc <- gsub(" mrs\\. ", " mrs ", doc)
+    # replace time
+    doc <- gsub("[0-9]+:?([0-9]+)? ?(a\\.?m\\.?|p\\.?m\\.?)", " tm-tm ", doc)
+    # replace money
+    doc <- gsub("[$£][0-9]*[\\.,]?[0-9]+[k|m]?", " mm-mm ", doc)
+    # replace ordinals
+    doc <- gsub("[0-9]+(rd|th)", " oo-oo ", doc)
+    # replace percent
+    doc <- gsub("[0-9]+[\\.,]?[0-9]+%", " pp-pp ", doc)
+    # replace some year's
+    doc <- gsub("[0-9]+'s", " ys-ys ", doc)
     
-    # remove all sorts of numeric values
-    doc <- gsub("[$]?[+-]?[0-9]{1,}(?:[0-9]*(?:[.,][0-9]{1,})?|(?:,[0-9]{1,})*(?:\\.[0-9]{1,})?|(?:\\.[0-9]{1,})*(?:,[0-9]{1,})?)[+%]?", " ", doc)
+    doc <- gsub(" u\\.s\\.", " us-us ", doc)
+    doc <- gsub(" i\\.e\\.", " ie-ie ", doc)
+    doc <- gsub(" e\\.g\\.", " eg-eg ", doc)
+    doc <- gsub(" a\\.d\\.", " ad-ad ", doc)
+    doc <- gsub(" dr\\. ", " dr-dr ", doc)
+    doc <- gsub(" mr\\. ", " mr-mr ", doc)
+    doc <- gsub(" mrs\\. ", " mrs-mrs ", doc)
+    doc <- gsub(" d\\.c\\.", " dc-dc", doc)
+    
+    # remove all standalone groups with numbers
+    doc <- gsub("[ \\.#,!\\+\\*\\-^&]\\(?[\\+\\*\\-]?([0-9]{1,}[, &=/\\+:\\.\\*\\-]*)+\\)?[ \\.,!#\\+\\*\\-^&]?", " nn-nn ", doc)
+    # remove 
+#    doc <- gsub("[$]?[+-]?[0-9]{1,}(?:[0-9]*(?:[.,][0-9]{1,})?|(?:,[0-9]{1,})*(?:\\.[0-9]{1,})?|(?:\\.[0-9]{1,})*(?:,[0-9]{1,})?)[+%]?", " nn-nn ", doc)
     # remove numbers
     doc <- gsub("[0-9]+", " ", doc)
 
@@ -145,6 +156,8 @@ cleandoc <- function(doc) {
     doc <- gsub("- ", " ", doc)
     # remove hash
     doc <- gsub("#", "", doc)
+    # remove star
+    doc <- gsub("\\*", "", doc)
     
     doc <- gsub("[\\(\\),:><\\+/]", " ", doc)
     doc <- gsub("[><\\+]", "", doc)
@@ -154,7 +167,7 @@ cleandoc <- function(doc) {
     
 #---------        
     # remove the dot in the beginning of the string
-    doc <- gsub("^[?!.;] ?", "", doc) 
+    doc <- gsub("^[?!\\.;]+ ?", "", doc) 
     
     # replace !.?; with ". ", treating multiple as one in the middle too.
     doc <- gsub("( ?[?!.;]+ ?)+", ". ", doc) 
