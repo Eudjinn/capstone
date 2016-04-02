@@ -2,11 +2,11 @@
 ## Loading data
 readData <- function() {
     blogs <- readLines("final/en_US/en_US.blogs.txt", encoding = "UTF-8", skipNul = TRUE)
-#    news <- readLines("final/en_US/en_US.news.txt", encoding = "UTF-8", skipNul = TRUE)
-#    twitter <- readLines("final/en_US/en_US.twitter.txt", encoding = "UTF-8", skipNul = TRUE)
+    news <- readLines("final/en_US/en_US.news.txt", encoding = "UTF-8", skipNul = TRUE)
+    twitter <- readLines("final/en_US/en_US.twitter.txt", encoding = "UTF-8", skipNul = TRUE)
     
-#    all <- c(blogs, news, twitter)
-    all <- blogs
+    all <- c(blogs, news, twitter)
+#    all <- blogs
     all
 }
 
@@ -237,15 +237,39 @@ predictTM <- function(model, phrase, n = 1, ngrams = 4, interpolate = FALSE, l =
         key <- getLastNWords(phrase, i)
         key
     })
-    
-    getWords <- function(ngram.i, words) {
-        nwords <- sum(!is.na(words))
-        if(nwords < n) {
+
+    if(0) {# I don't like recursive version of function    
+        getWords <- function(ngram.i, words) {
+            nwords <- sum(!is.na(words))
+            if(nwords < n) {
+                if(ngram.i > 1) {
+                    newwords <- as.character(model$dts[[ngram.i]][key[ngram.i-1]][order(-Prob)][1:n]$Word)
+                    words <- unique(c(words, newwords)) # remove words already suggested
+                    words <- words[!is.na(words)] # remove NA to get more suggestions
+                    words <- getWords(ngram.i = ngram.i-1, words)
+                } else if(ngram.i == 1)
+                    words <- c(words,
+                               as.character(model$dts[[ngram.i]][order(-Prob)][1:n]$Word))
+                # clear vector of potential predictions from NAs
+                # it is ordered by probabilities already during backoff but with higher-level n-gram priority
+                # so there is a chance that probability of first words in this vector have lower probability
+                # for stupid backoff this is the answer already.
+                words <- words[!is.na(words)]
+            } 
+            # it is important to explicitly convert to character because
+            # when sometimes it decides to return list with function, when
+            # all values returned are NA. 
+            as.character(words)
+        }
+    }
+
+    # ngrams - max ngram level, nwords.window - how many words to fetch
+    getWords <- function(ngrams, n) {
+        words <- character()
+        for(ngram.i in ngrams:1) {
             if(ngram.i > 1) {
-                newwords <- as.character(model$dts[[ngram.i]][key[ngram.i-1]][order(-Prob)][1:n]$Word) # remove to go back to 5-gram and uncomment   
+                newwords <- as.character(model$dts[[ngram.i]][key[ngram.i-1]][order(-Prob)][1:n]$Word)
                 words <- unique(c(words, newwords)) # remove words already suggested
-                words <- words[!is.na(words)] # remove NA to get more suggestions
-                words <- getWords(ngram.i = ngram.i-1, words)
             } else if(ngram.i == 1)
                 words <- c(words,
                            as.character(model$dts[[ngram.i]][order(-Prob)][1:n]$Word))
@@ -254,15 +278,15 @@ predictTM <- function(model, phrase, n = 1, ngrams = 4, interpolate = FALSE, l =
             # so there is a chance that probability of first words in this vector have lower probability
             # for stupid backoff this is the answer already.
             words <- words[!is.na(words)]
+            if(length(words) >= n)
+                break
         } 
-        # it is important to explicitly convert to character because
-        # when sometimes it decides to return list with function, when
-        # all values returned are NA. 
+        # perhaps explicit conversion to character is not needed
         as.character(words)
     }
     
     # run recursion over available n-grams, empty words list for the beginning
-    predicted.Words <- getWords(ngram.i = ngrams, character())
+    predicted.Words <- getWords(ngrams, n * 2)
 
     # in case interpolation is needed
     if(interpolate) {

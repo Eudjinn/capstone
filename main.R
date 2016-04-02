@@ -14,7 +14,7 @@ no_cores <- max(1, detectCores() - 1)
 options(mc.cores = no_cores)
 #options(datatable.verbose=TRUE)
 # number of rows from original docs to use
-sample.percent <- 0.05
+sample.percent <- 0.3
 # proportion of training set
 train.percent <- 0.7
 #parallel processing
@@ -45,37 +45,13 @@ inTrain <- sample(1:samplelength, samplelength * train.percent)
 train <- cleansample[inTrain]
 test <- cleansample[-inTrain]
 
-fit.Ak <- trainTM(t = train, 
-                       trimFeatures = FALSE, 
-                       minCount = 3, 
-                       minDoc = 2, 
-                       smoothingType = "Ak", 
-                       smoothK = 1,
-                       ngrams = 4)
-
 fit.GT<- trainTM(t = train, 
                        trimFeatures = FALSE, 
                        minCount = 3, 
                        minDoc = 2, 
                        smoothingType = "GT", 
-                       smoothK = 3,
+                       smoothK = 5,
                        ngrams = 4)
-
-fit.GT5<- trainTM(t = train, 
-                 trimFeatures = FALSE, 
-                 minCount = 3, 
-                 minDoc = 2, 
-                 smoothingType = "GT", 
-                 smoothK = 5,
-                 ngrams = 4)
-
-fit.GT10<- trainTM(t = train, 
-                  trimFeatures = FALSE, 
-                  minCount = 3, 
-                  minDoc = 2, 
-                  smoothingType = "GT", 
-                  smoothK = 10,
-                  ngrams = 4)
 
 
 # remove end of sentence chars as they are not needed after model was trained.
@@ -85,16 +61,11 @@ test <- cleanEnds(test)
 # test
 testlist <- makeTestList(test, maxdocs = 500, ngrams = ngrams)
 #tr.Ak.trim <- testTM(fit.Ak.trim, testlist, n = 3, maxitems = 1000, ngrams = ngrams, interpolate = TRUE, l = c(0.1, 0.15, 0.3, 0.45))
-tr.GTi <- testTM(fit.GT, testlist, n = 3, maxitems = 1000, ngrams = ngrams, interpolate = TRUE, l = c(0.1, 0.15, 0.3, 0.45))
-tr.Aki <- testTM(fit.Ak, testlist, n = 3, maxitems = 1000, ngrams = ngrams, interpolate = TRUE, l = c(0.1, 0.15, 0.3, 0.45))
 tr.GT <- testTM(fit.GT, testlist, n = 3, maxitems = 1000, ngrams = ngrams, interpolate = FALSE, l = c(0.1, 0.15, 0.3, 0.45))
-tr.Ak <- testTM(fit.Ak, testlist, n = 3, maxitems = 1000, ngrams = ngrams, interpolate = FALSE, l = c(0.1, 0.15, 0.3, 0.45))
-tr.GT5 <- testTM(fit.GT5, testlist, n = 3, maxitems = 1000, ngrams = ngrams, interpolate = FALSE, l = c(0.1, 0.15, 0.3, 0.45))
-tr.GT10 <- testTM(fit.GT10, testlist, n = 3, maxitems = 1000, ngrams = ngrams, interpolate = FALSE, l = c(0.1, 0.15, 0.3, 0.45))
 
 fit <- fit.GT
-#q2 <- quizTest(fit = fit, testkeys = q2.keys, testwords = q2.words, n = 3, ngrams = 4, interpolate = FALSE, l = c(0.005, 0.095, 0.1, 0.8))
-#q3 <- quizTest(fit = fit, testkeys = q3.keys, testwords = q3.words, n = 3, ngrams = 4, interpolate = FALSE, l = c(0.005, 0.095, 0.1, 0.8))
+q2 <- quizTest(fit = fit, testkeys = q2.keys, testwords = q2.words, n = 3, ngrams = 4, interpolate = FALSE, l = c(0.005, 0.095, 0.1, 0.8))
+q3 <- quizTest(fit = fit, testkeys = q3.keys, testwords = q3.words, n = 3, ngrams = 4, interpolate = FALSE, l = c(0.005, 0.095, 0.1, 0.8))
 
 #predictTM(model = fit, phrase = "see arctic monkeys this", n = 5, ngrams = 4, interpolate = TRUE, l = c(0.0005, 0.1495, 0.35, 0.5))
 
