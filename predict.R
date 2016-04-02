@@ -1,288 +1,111 @@
-library(tm)
-library(RWeka)
-library(wordcloud)
-library(ggplot2)
-library(grid)
-library(gridExtra)
-library(stringi)
+###############
 
-# wordcloud/RWeka does not work with parallel processing when NGramTokenizer is used.
-options(mc.cores=1)
-set.seed(4444)
-
-## Loading data
-# this is needed for tokenizer in DocumentTermMatrix to work. For some reason does not with parallel processing.
-# Found solution here: http://stackoverflow.com/questions/17703553/bigrams-instead-of-single-words-in-termdocument-matrix-using-r-and-rweka
-
-ds <- DirSource(directory = "final/en_US/")
-docs <- Corpus(ds, readerControl = list(reader = readPlain, language = "en", load = TRUE))
-
-docs.num <- length(docs)
-docs.name <- c("blogs", "news", "twitter")
-
-# gather simple information about documents corpus
-docs.info.df <- data.frame(FileName = character(), 
-                           NumberOfRows = integer(),
-                           NumberOfWords = integer())
-for(i in 1:docs.num) {
-    docs.info.df <- rbind(docs.info.df, 
-                          data.frame(FileName = docs[[i]]$meta$id, 
-                                     NumberOfRows = length(docs[[i]]$content),
-                                     NumberOfWords = sum(stri_count_words(docs[[i]]$content))))
-}
-
-## Sampling and cleaning data
-sample.size <- as.integer(10000)
-# copy original doc for processing (don't know how to make it more efficient yet)
-docs.sample <- docs
-# select random sample of sample.size from the original
-# iterate through documents in the corpus
-for (i in 1:docs.num) {
-    # get length of each document (number of lines)
-    l <- length(docs[[i]]$content)
-    # get random sample of lines in the document and replace the original doc in the corpus with the smaller sample.
-    docs.sample[[i]]$content <- docs[[i]]$content[sample(1:l, as.integer(sample.size))]
-}
-
-# remove punctuation
-docs.sample <- tm_map(docs.sample, removePunctuation)   
-# remove numbers
-docs.sample <- tm_map(docs.sample, removeNumbers)
-# remove unnecessary whitespaces
-docs.sample <- tm_map(docs.sample, stripWhitespace)
-# to lowecase
-docs.sample <- tm_map(docs.sample, content_transformer(tolower))
-# finalize preprocessing
-docs.sample <- tm_map(docs.sample, content_transformer(PlainTextDocument))
-
-##  create document term matrix for all documents
-bigramTokenizer <- function(x) NGramTokenizer(x, 
-                                Weka_control(min = 2, max = 2))
-trigramTokenizer <- function(x) NGramTokenizer(x, 
-                                Weka_control(min = 3, max = 3))
-
-dtm.sample.l <- list(unigram = DocumentTermMatrix(docs.sample),
-                     bigram = DocumentTermMatrix(docs.sample, control = list(tokenize = bigramTokenizer)),
-                     trigram = DocumentTermMatrix(docs.sample, control = list(tokenize = trigramTokenizer)))
-
-# remove sparse terms
-# dtms.sample.l <- lapply(dtm.sample.l, function(x) removeSparseTerms(x, 0.1))
-dtms.sample.l <- dtm.sample.l
-
-## Exploratory analysis
-### Basic information about the data
-
-# gather information about sample corpus
-docs.sample.info.df <- data.frame(FileName = character(), 
-                                  NumberOfRows = integer(),
-                                  NumberOfWords = integer(),
-                                  NumberOfTermsPerDocument = integer())
-for(i in 1:docs.num) {
-    docs.sample.info.df <- rbind(docs.sample.info.df, 
-                                 data.frame(FileName = docs.sample[[i]]$meta$id, 
-                                            NumberOfRows = length(docs.sample[[i]]$content),
-                                            NumberOfWords = sum(dtm.sample.l$unigram$v[dtm.sample.l$unigram$i == i]),
-                                            NumberOfTermsPerDocument = sum(dtm.sample.l$unigram$v != 0 & 
-                                                                               dtm.sample.l$unigram$i == i)))
-}
-
-# show output of DocumentTermMatrix with sparse terms
-dtm.sample.l$unigram
-
-### Questions of the analysis
-#### 1. Some words are more frequent than others - what are the distributions of word frequencies?  
-
-# Create matrixes
-dtms.sample.m.l <- list(unigram = as.matrix(dtms.sample.l$unigram),
-                        bigram = as.matrix(dtms.sample.l$bigram),
-                        trigram = as.matrix(dtms.sample.l$trigram))
-
-# sort frequencies of terms in separate documents
-# input - document term matrix
-getTopTerms <- function(ngram.m, n = 20) {
-
-    # initialize structures for top list
-    df <- data.frame(Term = factor(), Freq = integer(), Doc = factor())
-    top <- df
-
-    for(i in 1:docs.num) {
-        # Unigrams
-        doc <- data.frame(Term = dimnames(ngram.m)$Terms, 
-                          Freq = ngram.m[i, ], 
-                          Doc = factor(docs.name[i], levels = docs.name))
-        df <- rbind(df, doc[order(doc$Freq, decreasing = TRUE), ])
+# REWRITE
+predictTM <- function(model, phrase, n = 1, ngrams = 4, interpolate = FALSE, l = c(0.1, 0.15, 0.3, 0.45)) {
+    # stupid protection from phrases with less then 4 words.
+    # need to be rewritten
+    dummy <- "<notaword> <notaword> <notaword> <notaword>"
+    phrase <- tolower(phrase)
+    phrase <- paste(dummy, phrase)
     
-        top <- rbind(top, df[as.integer(df$Doc) == i, ][1:n, ])
+    #    s <- unlist(strsplit(phrase, split = " "))
+    #    s.length <- length(s)
+    
+    #    substr <- character(ngrams - 1)
+    #    substr <- sapply(1:(ngrams - 1), function(i) {
+    #        substr <- s[(s.length - ngrams + i + 1)]
+    #        substr
+    #    })
+    
+    key <- sapply(1:(ngrams - 1), function(i) {
+        key <- getLastNWords(phrase, i)
+        key
+    })
+
+    # ngrams - max ngram level, nwords.window - how many words to fetch
+    getWords <- function(ngrams, n) {
+        words <- character()
+        for(ngram.i in ngrams:1) {
+            if(ngram.i > 1) {
+                newwords <- as.character(model$dts[[ngram.i]][key[ngram.i-1]][order(-Prob)][1:n]$Word)
+                words <- unique(c(words, newwords)) # remove words already suggested
+            } else if(ngram.i == 1)
+                words <- c(words,
+                           as.character(model$dts[[ngram.i]][order(-Prob)][1:n]$Word))
+            # clear vector of potential predictions from NAs
+            # it is ordered by probabilities already during backoff but with higher-level n-gram priority
+            # so there is a chance that probability of first words in this vector have lower probability
+            # for stupid backoff this is the answer already.
+            words <- words[!is.na(words)]
+            if(length(words) >= n)
+                break
+        } 
+        # perhaps explicit conversion to character is not needed
+        as.character(words)
     }
-    # return result
-    top
-}
-
-# get top for all n-grams
-ngram.df.top.l <- lapply(dtms.sample.m.l, function(x) getTopTerms(x, 20))
-
-# iterate over (unigram, bigram, trigram) separate dataframe by doc id
-ngram.df.top.l.docs <- lapply(ngram.df.top.l, function(x) split(x, x$Doc))
-
-# function that reorders levels according to the order of terms corresponding 
-# to ordered frequencies
-orderLevels <- function(ngram.docs.l) { 
-    lapply(ngram.docs.l, function(y) {
-            y$Term <- factor(y$Term, 
-                             levels = unique(as.character(y$Term)))
-            y
-        })
-}
-
-# iterate over (unigrams, bigrams, trigrams) and apply orderLevels which iterates 
-# over docs.
-ngram.df.top.l.docs <- lapply(ngram.df.top.l.docs, orderLevels)
-
-# calculate aggregated frequency
-freq.l <- lapply(dtms.sample.m.l, colSums)
-
-# manually remove non-frequent terms
-freq.l <- lapply(freq.l, function(x, f) x[x > f], f = 2)
-
-# sort by most frequently used words
-freq.l <- lapply(freq.l, function(x) sort(x, decreasing = TRUE))
-terms.l <- lapply(freq.l, names)
-
-# dataframe for more convenient use in ggplot
-freq.df.l <- list(unigram = data.frame(Term = factor(terms.l$unigram, 
-                                                     levels = terms.l$unigram), 
-                                       Freq = freq.l$unigram),
-                  bigram = data.frame(Term = factor(terms.l$bigram, 
-                                                    levels = terms.l$bigram), 
-                                      Freq = freq.l$bigram),
-                  trigram = data.frame(Term = factor(terms.l$trigram, 
-                                                     levels = terms.l$trigram), 
-                                       Freq = freq.l$trigram))
-
-###
-### Prediction
-
-########### Util
-getFirstThreeWords <- function(s) {
-    stri_extract_first(s, regex = "^[a-z]* [a-z]* [a-z]*")
-#    stri_extract_first(s, regex = "^[^ ]* [^ ]* [^ ]*")
-}
-
-getFirstTwoWords <- function(s) {
-    stri_extract_first(s, regex = "^[a-z]* [a-z]*")
-#    stri_extract_first(s, regex = "^[^ ]* [^ ]*")
-}
-
-getFirstWord <- function(s) {
-    stri_extract_first(s, regex = "^[a-z]*")
-#    stri_extract_first(s, regex = "^[^ ]*")
-}
-
-getLastWord <- function(s) {
-    stri_extract_first(s, regex = "[a-z]*$")
-#    stri_extract_first(s, regex = "[^ ]*$")
-}
-
-removeTwoFirstWords <- function(s) {
-    stri_replace_first(s, "", regex = "^[a-z]* [a-z]* *")
-}
-
-removeFirstWord <- function(s) {
-    stri_replace_first(s, "", regex = "^[a-z]* *")
-}
-
-###########
-uni.markov.key <- terms.l$unigram
-uni.markov.word <- terms.l$unigram
-
-bi.markov.key <- getFirstWord(terms.l$bigram)
-bi.markov.word <- getLastWord(terms.l$bigram)
-
-tri.markov.key <- getFirstTwoWords(terms.l$trigram)
-tri.markov.word <- getLastWord(terms.l$trigram)
-
-
-freq.df.markov.l <- list(unigram = data.frame(Key = factor(uni.markov.key, 
-                                                           levels = unique(uni.markov.key)), 
-                                              Word = factor(uni.markov.word, 
-                                                            levels = unique(uni.markov.word)), 
-                                              Freq = freq.l$unigram),
-                         bigram = data.frame(Key = factor(bi.markov.key, 
-                                                          levels = unique(bi.markov.key)),
-                                             Word = factor(bi.markov.word, 
-                                                           levels = unique(bi.markov.word)), 
-                                             Freq = freq.l$bigram),
-                         trigram = data.frame(Key = factor(tri.markov.key, 
-                                                            levels = unique(tri.markov.key)), 
-                                              Word = factor(tri.markov.word, 
-                                                           levels = unique(tri.markov.word)), 
-                                              Freq = freq.l$trigram))
-
-
-predictWord <- function(phrase, ngram.markov.l, n = 1) {
-    trigram.id <- which(ngram.markov.l$trigram$Key == phrase)
-
-    predicted.id <- 1:n #which.max(prob)
     
-    if(length(trigram.id) > 0) {
-        trigram.freq <- ngram.markov.l$trigram$Freq[trigram.id]
-        
-        bigram.id <- which(ngram.markov.l$bigram$Key == getFirstWord(phrase) &
-                               ngram.markov.l$bigram$Word == getLastWord(phrase))
-        # frequency is not used now
-        bigram.freq <-  ngram.markov.l$bigram$Freq[bigram.id]
-        
-        # simple maximum likelihood probability, not used now
-        prob <- trigram.freq/bigram.freq
-        # since all structures are ordered, the best will be on the top
-        predicted.word <- ngram.markov.l$trigram$Word[trigram.id[predicted.id]]
-    } else {
-        bigram.id <- which(ngram.markov.l$bigram$Key == getLastWord(phrase))
+    # run recursion over available n-grams, empty words list for the beginning
+    predicted.Words <- getWords(ngrams, n * 2)
 
-        if(length(bigram.id) > 0) {
-            
-            # frequency is not used now
-            bigram.freq <- ngram.markov.l$bigram$Freq[bigram.id]
-            # since all structures are ordered, the best will be on the top
-            predicted.word <- ngram.markov.l$bigram$Word[bigram.id[predicted.id]]
-        } else {
-            unigram.id <- ngram.markov.l$unigram$Key[1:n]
-            predicted.word <- ngram.markov.l$unigram$Key[unigram.id[predicted.id]]
+    # in case interpolation is needed
+    if(interpolate) {
+        # create vector to store interpolated probabilities for each Word
+        predicted.IProbs <- numeric(length(predicted.Words))
+        # create vector for probabilities of a Word in each n-gram model
+        
+        # non-recursive version
+        getIProbs <- function(word, ngrams) {
+            probs <- numeric(ngrams)
+            for(ngram.i in ngrams:1) {
+                if(ngram.i > 1)
+                    probs[ngram.i] <- as.numeric(model$dts[[ngram.i]][.(key[ngram.i-1],predicted.Words[i])]$Prob[1])
+                else if(ngram.i == 1)
+                    probs[ngram.i] <- as.numeric(model$dts[[ngram.i]][.(predicted.Words[i])]$Prob[1])
+            }
+            probs[is.na(probs)] <- 0
+            probs
+        }
+        
+        # iterate over number of selected words to get their probabilities 
+        # in each n-gram model to calculate interpolation
+        for(i in 1:length(predicted.Words)) {
+            # run recursion over all n-gram models for each word
+            probs <- getIProbs(predicted.Words[i], ngrams)
+            predicted.IProbs[i] <- sum(probs * l)
+        }
+        # data frame with results
+        predicted <- data.frame(Word = predicted.Words, 
+                                iprob = predicted.IProbs, 
+                                stringsAsFactors = FALSE)
+        predicted.Words <- predicted[order(predicted$iprob, decreasing = TRUE), ]$Word
+    }
+    # cut n words from the top only at the end of selection
+    predicted.Words[1:n]
+}
+
+# WILL NOT WORK WITH 4-GRAM
+probTM <- function(model, phrase, word) {
+    # stupid protection from phrases with less then 4 words.
+    # need to be rewritten
+    dummy <- "<notaword> <notaword> <notaword> <notaword>"
+    phrase <- paste(dummy, phrase)
+    phrase.four <- getLastNWords(phrase, 4)
+    phrase.three <- getLastNWords(phrase, 3)
+    phrase.two <- getLastNWords(phrase, 2)
+    phrase.one <- getLastNWords(phrase, 1)
+
+    match <- model$dts[[5]][phrase.four][Word == word]
+    if(length(match$Word) == 0) {
+        match <- model$dts[[4]][phrase.three][Word == word]
+        if(length(match$Word) == 0) {
+            match <- model$dts[[3]][phrase.two][Word == word]
+            if(length(match$Word) == 0) {
+                match <- model$dts[[2]][phrase.one][Word == word]
+                if(length(match$Word) == 0){
+                    match <- data.table(Key = NA, Word = NA, Freq = 0, Prob = 0, FreqSmooth = 0)
+                }
+            }
         }
     }
-    predicted.word
+    cbind(phrase.four, match)
 }
-
-# predicted <- sapply(testset$pair, function(x) predictWord(x, ngram.markov.l, 1))
-
-splitStringToSet <- function(s) {
-    triples <- data.frame(pair = character(), word = character(), stringsAsFactors = FALSE)
-    while(stri_count_words(s) > 2) {
-        three <- getFirstThreeWords(s)
-        two <- getFirstTwoWords(three)
-        triple <- data.frame(pair = two, 
-                             word = removeTwoFirstWords(three), stringsAsFactors = FALSE)
-        triples <- rbind(triples, triple)
-        
-        s <- removeFirstWord(s)
-    }
-    triples    
-}
-
-###################
-predictWord("going to", freq.df.markov.l, n = 1)
-
-superpaste <- function(x) { 
-    s <- character()
-    for(i in 1:length(x)) {
-        s <- paste(s, x[i])
-    }
-    s
-}
-
-s <- supertaste(docs.sample[[1]]$content[1:10])
-devtest <- splitStringToSet(s)
-predicted <- sapply(devtest$pair, function(x) predictWord(x, freq.df.markov.l, 1))
-
-table(devtest$word == predicted)
-

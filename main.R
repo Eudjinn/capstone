@@ -14,7 +14,7 @@ no_cores <- max(1, detectCores() - 1)
 options(mc.cores = no_cores)
 #options(datatable.verbose=TRUE)
 # number of rows from original docs to use
-sample.percent <- 0.3
+sample.percent <- 0.01
 # proportion of training set
 train.percent <- 0.7
 #parallel processing
@@ -25,7 +25,9 @@ ngrams <- 4
 ############################################
 
 source("utils.R")
-source("predict_q.R")
+source("preprocess.R")
+source("train.R")
+source("predict.R")
 source("test.R")
 source("quiz2.R")
 
