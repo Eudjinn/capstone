@@ -49,8 +49,8 @@ test <- cleansample[-inTrain]
 
 fit.GT<- trainTM(t = train, 
                        trimFeatures = TRUE, 
-                       minCount = 3, 
-                       minDoc = 2, 
+                       minCount = 2, 
+                       minDoc = 3, 
                        smoothingType = "GT", 
                        smoothK = 5,
                        ngrams = 4)
@@ -63,11 +63,12 @@ test <- cleanEnds(test)
 # test
 testlist <- makeTestList(test, maxdocs = 500, ngrams = ngrams)
 #tr.Ak.trim <- testTM(fit.Ak.trim, testlist, n = 3, maxitems = 1000, ngrams = ngrams, interpolate = TRUE, l = c(0.1, 0.15, 0.3, 0.45))
-tr.GT <- testTM(fit.GT, testlist, n = 3, maxitems = 1000, ngrams = ngrams, interpolate = FALSE, l = c(0.1, 0.15, 0.3, 0.45))
+tr.GT <- testTM(fit.GT, testlist, n = 3, maxitems = 1000, ngrams = ngrams, parallel = FALSE, interpolate = FALSE)
+tr.GTi <- testTM(fit.GT, testlist, n = 3, maxitems = 1000, ngrams = ngrams, parallel = FALSE, interpolate = TRUE, l = c(0.1, 0.15, 0.3, 0.45))
 
 fit <- fit.GT
-q2 <- quizTest(fit = fit, testkeys = q2.keys, testwords = q2.words, n = 3, ngrams = 4, interpolate = FALSE, l = c(0.005, 0.095, 0.1, 0.8))
-q3 <- quizTest(fit = fit, testkeys = q3.keys, testwords = q3.words, n = 3, ngrams = 4, interpolate = FALSE, l = c(0.005, 0.095, 0.1, 0.8))
+q2 <- quizTest(fit = fit, testkeys = q2.keys, testwords = q2.words, n = 3, ngrams = 4, interpolate = FALSE, l = c(0.1, 0.15, 0.3, 0.45))
+q3 <- quizTest(fit = fit, testkeys = q3.keys, testwords = q3.words, n = 3, ngrams = 4, interpolate = FALSE, l = c(0.1, 0.15, 0.3, 0.45))
 
 #predictTM(model = fit, phrase = "see arctic monkeys this", n = 5, ngrams = 4, interpolate = TRUE, l = c(0.0005, 0.1495, 0.35, 0.5))
 

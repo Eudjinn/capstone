@@ -171,11 +171,11 @@ trainTM <- function(t = NULL,
         
 #        if(trimFeatures)
 #            dtm <- trim(dtm, minCount = minCount, minDoc = minDoc)
-        
+        cat("Create data tables...\n")        
         dt <- data.table(Key = getFirstNWords(features(dtm), i - 1), 
                          Word = getLastNWords(features(dtm), 1),
-                         Freq = docfreq(dtm, scheme = "count"))
-                         #Freq = colSums(dtm))
+#                         Freq = docfreq(dtm, scheme = "count"))
+                         Freq = colSums(dtm))
 
  #       unk <- data.table(Key = "uu-nn-kk", # unknown word with frequency 1 after trimming
  #                         Word = "uu-nn-kk",
@@ -196,6 +196,7 @@ trainTM <- function(t = NULL,
             dt <- dt[-remove]
 
         # Smoothing
+        cat("Apply smoothing...\n")        
         if(i == 1) {
             voc.size <<- nrow(dt) # save to upper context for other i
         }
@@ -210,6 +211,7 @@ trainTM <- function(t = NULL,
         
         # EXPERIMENTAL: Remove starts and ends from tables and other tags:
         # once smoothing is done, tags are not needed for prediction any more
+        cat("Remove tags features...\n")        
         tags <- "ss-ss|ee-ee|ww-ww|tm-tm|mm-mm|oo-oo|us-us|ie-ie|eg-eg|ad-ad|dr-dr|mr-mr|mrs-mrs|dc-dc|nn-nn|ys-ys"
         tagskey <- grep(tags, dt$Key)
         tagsword <- grep(tags, dt$Word)
@@ -218,9 +220,10 @@ trainTM <- function(t = NULL,
             dt <- dt[-remove]
         
         # get rid of rare features:
-        if(trimFeatures)
+        if(trimFeatures){
+            cat("Trim features...\n")        
             dt <- dt[Freq > minCount]
-        
+        }
         dt # return result
     })
 
