@@ -1,9 +1,9 @@
 ## Loading data
 readData <- function() {
     cat("Reading files...\n")
-    blogs <- readLines("final/en_US/en_US.blogs.txt", encoding = "UTF-8", skipNul = TRUE)
-    news <- readLines("final/en_US/en_US.news.txt", encoding = "UTF-8", skipNul = TRUE)
-    twitter <- readLines("final/en_US/en_US.twitter.txt", encoding = "UTF-8", skipNul = TRUE)
+    blogs <- readLines("../final/en_US/en_US.blogs.txt", encoding = "UTF-8", skipNul = TRUE)
+    news <- readLines("../final/en_US/en_US.news.txt", encoding = "UTF-8", skipNul = TRUE)
+    twitter <- readLines("../final/en_US/en_US.twitter.txt", encoding = "UTF-8", skipNul = TRUE)
     
     all <- c(blogs, news, twitter)
 #    all <- blogs
