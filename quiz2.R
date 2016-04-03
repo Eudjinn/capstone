@@ -1,3 +1,4 @@
+# legasy function, will not work, needs to be fixed.
 quiz2 <- function(fit) {
     predicted <- data.table(rbind(
         predictTM(fit, "The guy in front of me just bought a pound of bacon, a bouquet, and a case of", n = 5),
@@ -10,30 +11,6 @@ quiz2 <- function(fit) {
         predictTM(fit, "After the ice bucket challenge Louis will push his long wet hair out of his eyes with his little", n = 5),
         predictTM(fit, "Be grateful for the good times and keep the faith during the", n = 5),
         predictTM(fit, "If this isn't the cutest thing you've ever seen, then you must be", n = 5))
-    )
-    predictedbo <- data.table(rbind(
-        predictTMbo(fit, "The guy in front of me just bought a pound of bacon, a bouquet, and a case of", n = 5, a = c(0.01,0.4,0.4,0.4,1)),
-        predictTMbo(fit, "You're the reason why I smile everyday. Can you follow me please? It would mean the", n = 5, a = c(0.01,0.4,0.4,0.4,1)),
-        predictTMbo(fit, "Hey sunshine, can you follow me and make me the", n = 5, a = c(0.01,0.4,0.4,0.4,1)),
-        predictTMbo(fit, "Very early observations on the Bills game: Offense still struggling but the", n = 5, a = c(0.01,0.4,0.4,0.4,1)),
-        predictTMbo(fit, "Go on a romantic date at the", n = 5),
-        predictTMbo(fit, "Well I'm pretty sure my granny has some old bagpipes in her garage I'll dust them off and be on my", n = 5, a = c(0.01,0.4,0.4,0.4,1)),
-        predictTMbo(fit, "Ohhhhh #PointBreak is on tomorrow. Love that film and haven't seen it in quite some", n = 5, a = c(0.01,0.4,0.4,0.4,1)),
-        predictTMbo(fit, "After the ice bucket challenge Louis will push his long wet hair out of his eyes with his little", n = 5, a = c(0.01,0.4,0.4,0.4,1)),
-        predictTMbo(fit, "Be grateful for the good times and keep the faith during the", n = 5, a = c(0.01,0.4,0.4,0.4,1)),
-        predictTMbo(fit, "If this isn't the cutest thing you've ever seen, then you must be", n = 5, a = c(0.01,0.4,0.4,0.4,1)))
-    )
-    predictedInt <- data.table(rbind(
-        predictTM(fit, "The guy in front of me just bought a pound of bacon, a bouquet, and a case of", n = 5, l = l),
-        predictTM(fit, "You're the reason why I smile everyday. Can you follow me please? It would mean the", n = 5, l = l),
-        predictTM(fit, "Hey sunshine, can you follow me and make me the", n = 5, l = l),
-        predictTM(fit, "Very early observations on the Bills game: Offense still struggling but the", n = 5, l = 1),
-        predictTM(fit, "Go on a romantic date at the", n = 5, l = 1),
-        predictTM(fit, "Well I'm pretty sure my granny has some old bagpipes in her garage I'll dust them off and be on my", n = 5, l = 1),
-        predictTM(fit, "Ohhhhh #PointBreak is on tomorrow. Love that film and haven't seen it in quite some", n = 5, l = 1),
-        predictTM(fit, "After the ice bucket challenge Louis will push his long wet hair out of his eyes with his little", n = 5, l = 1),
-        predictTM(fit, "Be grateful for the good times and keep the faith during the", n = 5, l = 1),
-        predictTM(fit, "If this isn't the cutest thing you've ever seen, then you must be", n = 5), l = 1)
     )
     probs <- data.table(rbind(
         probTM(fit, "The guy in front of me just bought a pound of bacon, a bouquet, and a case of", "pretzels"),
@@ -138,13 +115,25 @@ q3.words <- c("die",
 
 
 
-quizTest <- function(fit = NULL, testkeys = NULL, testwords = NULL, n = 3, ngrams = 4, interpolate = FALSE, l = c(0.1, 0.15, 0.3, 0.45)) {
+quizTest <- function(fit = NULL, 
+                     testkeys = NULL, 
+                     testwords = NULL, 
+                     n = 3, 
+                     ngrams = 4, 
+                     method = "none", 
+                     alpha = 1,
+                     lambda = c(0.1, 0.15, 0.3, 0.45)) {
 
     nitems <- length(testwords)
         
     predicted <- sapply(testkeys, 
                         function(y) {
-                            predictTM(model = fit, phrase = y, n = n, ngrams = ngrams, interpolate = interpolate, l = l)
+                            predictTM(model = fit, 
+                                      phrase = y, 
+                                      n = n, ngrams = ngrams, 
+                                      method = method,
+                                      alpha = alpha,
+                                      lambda = lambda)
                         })
     
     predicted <- t(as.matrix(predicted, n))
@@ -167,7 +156,3 @@ quizTest <- function(fit = NULL, testkeys = NULL, testwords = NULL, n = 3, ngram
                    accuracy = matches["TRUE"]/(matches["TRUE"] + matches["FALSE"]))
     result
 }
-
-
-# ordered results
-# answers$probs[, .(phrase.four, Word, Prob)][order(phrase.four, -Prob)]

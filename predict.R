@@ -1,7 +1,7 @@
 ###############
 
 # REWRITE
-predictTM <- function(model, phrase, n = 1, ngrams = 4, interpolate = FALSE, l = c(0.1, 0.15, 0.3, 0.45)) {
+predictTM <- function(model, phrase, n = 1, ngrams = 4, method = "SBO", alpha = 0.4, lambda = c(0.1, 0.15, 0.3, 0.45)) {
     # stupid protection from phrases with less then 4 words.
     # need to be rewritten
     dummy <- "<notaword> <notaword> <notaword> <notaword>"
@@ -22,33 +22,46 @@ predictTM <- function(model, phrase, n = 1, ngrams = 4, interpolate = FALSE, l =
         key
     })
 
+    # if not Stupid backoff, don't alpha coefficient should not affect results
+    # interpolation has its own coefficients
+    if(method != "SBO")
+        alpha <- 1
+
     # ngrams - max ngram level, nwords.window - how many words to fetch
     getWords <- function(ngrams, n) {
-        words <- character()
+        discount <- 1
+        # create empty data.table
+        selected <- data.table(Word = character(), Prob = numeric())
         for(ngram.i in ngrams:1) {
             if(ngram.i > 1) {
-                newwords <- as.character(model$dts[[ngram.i]][key[ngram.i-1]][order(-Prob)][1:n]$Word)
-                words <- unique(c(words, newwords)) # remove words already suggested
+                found <- model$dts[[ngram.i]][key[ngram.i-1], .(Word, Prob)][order(-Prob)][1:n]
+#                newwords <- as.character(model$dts[[ngram.i]][key[ngram.i-1]][order(-Prob)][1:n]$Word)
             } else if(ngram.i == 1)
-                words <- c(words,
-                           as.character(model$dts[[ngram.i]][order(-Prob)][1:n]$Word))
-            # clear vector of potential predictions from NAs
-            # it is ordered by probabilities already during backoff but with higher-level n-gram priority
-            # so there is a chance that probability of first words in this vector have lower probability
-            # for stupid backoff this is the answer already.
-            words <- words[!is.na(words)]
-            if(length(words) >= n)
+                found <- model$dts[[ngram.i]][, .(Word, Prob)][order(-Prob)][1:n]
+            # remove NA values from found
+            found <- found[!is.na(found$Word), ]
+            if(nrow(found) > 0) { # do something only if found something
+                # if higer-level n-gram gave results, apply alpha to lower-level findings
+                if(nrow(selected) > 0)
+                    found$Prob <- alpha * found$Prob 
+                # bind new results with results from higher n-grams
+                l <- list(selected, found)
+                selected <- rbindlist(l)
+                # remove duplicated words with lower probability and order by Prob desc
+                selected <- unique(selected[, Prob := max(Prob), by = Word][order(-Prob)])
+            }
+            if(nrow(selected) >= n)
                 break
         } 
         # perhaps explicit conversion to character is not needed
-        as.character(words)
+        as.character(selected$Word)
     }
     
     # run recursion over available n-grams, empty words list for the beginning
-    predicted.Words <- getWords(ngrams, n * 2)
+    predicted.Words <- getWords(ngrams, n)
 
     # in case interpolation is needed
-    if(interpolate) {
+    if(method == "I") {
         # create vector to store interpolated probabilities for each Word
         predicted.IProbs <- numeric(length(predicted.Words))
         # create vector for probabilities of a Word in each n-gram model
@@ -71,7 +84,7 @@ predictTM <- function(model, phrase, n = 1, ngrams = 4, interpolate = FALSE, l =
         for(i in 1:length(predicted.Words)) {
             # run recursion over all n-gram models for each word
             probs <- getIProbs(predicted.Words[i], ngrams)
-            predicted.IProbs[i] <- sum(probs * l)
+            predicted.IProbs[i] <- sum(probs * lambda)
         }
         # data frame with results
         predicted <- data.frame(Word = predicted.Words, 

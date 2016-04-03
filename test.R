@@ -14,7 +14,7 @@ makeTestList <- function(testset, maxdocs, ngrams = 4) {
     testlist
 }
 
-testTM <- function(model, testlist, maxitems, n = 1, ngrams = 4, a = NULL, interpolate = FALSE, l = c(0.1, 0.15, 0.3, 0.45), parallel = FALSE) {
+testTM <- function(model, testlist, maxitems, n = 1, ngrams = 4, method = "none", alpha = 1, l = c(0.1, 0.15, 0.3, 0.45), parallel = FALSE) {
     if(parallel) {
         no_cores <- max(1, detectCores() - 1)
         cl <- makeForkCluster(no_cores)
@@ -40,7 +40,8 @@ testTM <- function(model, testlist, maxitems, n = 1, ngrams = 4, a = NULL, inter
                                                   phrase = y, 
                                                   n = n, 
                                                   ngrams = ngrams, 
-                                                  interpolate = interpolate,
+                                                  method = method,
+                                                  alpha = alpha,
                                                   l = l))
     else
         predicted <- sapply(testpairs, 
@@ -48,7 +49,8 @@ testTM <- function(model, testlist, maxitems, n = 1, ngrams = 4, a = NULL, inter
                                                      phrase = y, 
                                                      n = n, 
                                                      ngrams = ngrams, 
-                                                     interpolate = interpolate,
+                                                     method = method,
+                                                     alpha = alpha,
                                                      l = l))
     predicted <- t(as.matrix(predicted, n))
     predicted[is.na(predicted)] <- "<unk>"

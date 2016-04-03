@@ -14,7 +14,7 @@ no_cores <- max(1, detectCores() - 1)
 options(mc.cores = no_cores)
 #options(datatable.verbose=TRUE)
 # number of rows from original docs to use
-sample.percent <- 0.25
+sample.percent <- 0.3
 # proportion of training set
 train.percent <- 0.8
 #parallel processing
@@ -62,13 +62,19 @@ test <- cleanEnds(test)
 
 # test
 testlist <- makeTestList(test, maxdocs = 500, ngrams = ngrams)
-#tr.Ak.trim <- testTM(fit.Ak.trim, testlist, n = 3, maxitems = 1000, ngrams = ngrams, interpolate = TRUE, l = c(0.1, 0.15, 0.3, 0.45))
-tr.GT <- testTM(fit.GT, testlist, n = 3, maxitems = 1000, ngrams = ngrams, parallel = FALSE, interpolate = FALSE)
-tr.GTi <- testTM(fit.GT, testlist, n = 3, maxitems = 1000, ngrams = ngrams, parallel = FALSE, interpolate = TRUE, l = c(0.1, 0.15, 0.3, 0.45))
+#tr.Ak.trim <- testTM(fit.Ak.trim, testlist, n = 3, maxitems = 1000, ngrams = ngrams, method = "I", l = c(0.1, 0.15, 0.3, 0.45))
+tr.GT <- testTM(fit.GT, testlist, n = 3, maxitems = 1000, ngrams = ngrams, parallel = FALSE, method = "none")
+tr.GTsbo <- testTM(fit.GT, testlist, n = 3, maxitems = 1000, ngrams = ngrams, parallel = FALSE, method = "SBO", alpha = 0.4)
+tr.GTi <- testTM(fit.GT, testlist, n = 3, maxitems = 1000, ngrams = ngrams, parallel = FALSE, method = "I", l = c(0.1, 0.15, 0.3, 0.45))
 
 fit <- fit.GT
-q2 <- quizTest(fit = fit, testkeys = q2.keys, testwords = q2.words, n = 3, ngrams = 4, interpolate = FALSE, l = c(0.1, 0.15, 0.3, 0.45))
-q3 <- quizTest(fit = fit, testkeys = q3.keys, testwords = q3.words, n = 3, ngrams = 4, interpolate = FALSE, l = c(0.1, 0.15, 0.3, 0.45))
+q2 <- quizTest(fit = fit, testkeys = q2.keys, testwords = q2.words, n = 3, ngrams = 4, method = "none")
+q2sbo <- quizTest(fit = fit, testkeys = q2.keys, testwords = q2.words, n = 3, ngrams = 4, method = "SBO", alpha = 0.4)
+q2i <- quizTest(fit = fit, testkeys = q2.keys, testwords = q2.words, n = 3, ngrams = 4, method = "I", l = c(0.1, 0.15, 0.3, 0.45))
 
-#predictTM(model = fit, phrase = "see arctic monkeys this", n = 5, ngrams = 4, interpolate = TRUE, l = c(0.0005, 0.1495, 0.35, 0.5))
+q3 <- quizTest(fit = fit, testkeys = q3.keys, testwords = q3.words, n = 3, ngrams = 4, method = "none")
+q3sbo <- quizTest(fit = fit, testkeys = q3.keys, testwords = q3.words, n = 3, ngrams = 4, method = "SBO", alpha = 0.4)
+q3i <- quizTest(fit = fit, testkeys = q3.keys, testwords = q3.words, n = 3, ngrams = 4, method = "I", l = c(0.1, 0.15, 0.3, 0.45))
+
+#predictTM(model = fit, phrase = "see arctic monkeys this", n = 5, ngrams = 4, method = "I", l = c(0.1, 0.15, 0.3, 0.45))
 
