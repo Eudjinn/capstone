@@ -229,6 +229,8 @@ trainTM <- function(t = NULL,
 
     # return the model
     fit <- list(#dtms = dtms,
+        ngrams = ngrams,
+        smoothing = smoothingType,
         dts = dts)
     fit
 }

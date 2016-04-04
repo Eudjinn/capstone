@@ -119,7 +119,6 @@ quizTest <- function(fit = NULL,
                      testkeys = NULL, 
                      testwords = NULL, 
                      n = 3, 
-                     ngrams = 4, 
                      method = "none", 
                      alpha = 1,
                      lambda = c(0.1, 0.15, 0.3, 0.45)) {
@@ -130,7 +129,7 @@ quizTest <- function(fit = NULL,
                         function(y) {
                             predictTM(model = fit, 
                                       phrase = y, 
-                                      n = n, ngrams = ngrams, 
+                                      n = n,
                                       method = method,
                                       alpha = alpha,
                                       lambda = lambda)

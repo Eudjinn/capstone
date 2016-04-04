@@ -1,12 +1,15 @@
 ###############
 
 # REWRITE
-predictTM <- function(model, phrase, n = 1, ngrams = 4, method = "SBO", alpha = 0.4, lambda = c(0.1, 0.15, 0.3, 0.45)) {
+predictTM <- function(model, phrase, n = 1, method = "SBO", alpha = 0.4, lambda = c(0.1, 0.15, 0.3, 0.45)) {
+    require(data.table)
+    ngrams <- model$ngrams
     # stupid protection from phrases with less then 4 words.
     # need to be rewritten
-    dummy <- "<notaword> <notaword> <notaword> <notaword>"
+    dummy <- paste(rep("ss-ss", ngrams), collapse = " ")
     phrase <- tolower(phrase)
     phrase <- paste(dummy, phrase)
+    phrase <- cleandoc(phrase)
     
     #    s <- unlist(strsplit(phrase, split = " "))
     #    s.length <- length(s)
@@ -53,8 +56,7 @@ predictTM <- function(model, phrase, n = 1, ngrams = 4, method = "SBO", alpha = 
             if(nrow(selected) >= n)
                 break
         } 
-        # perhaps explicit conversion to character is not needed
-        as.character(selected$Word)
+        selected
     }
     
     # run recursion over available n-grams, empty words list for the beginning
@@ -62,18 +64,14 @@ predictTM <- function(model, phrase, n = 1, ngrams = 4, method = "SBO", alpha = 
 
     # in case interpolation is needed
     if(method == "I") {
-        # create vector to store interpolated probabilities for each Word
-        predicted.IProbs <- numeric(length(predicted.Words))
-        # create vector for probabilities of a Word in each n-gram model
-        
         # non-recursive version
-        getIProbs <- function(word, ngrams) {
+        getIProb <- function(word, ngrams) {
             probs <- numeric(ngrams)
             for(ngram.i in ngrams:1) {
                 if(ngram.i > 1)
-                    probs[ngram.i] <- as.numeric(model$dts[[ngram.i]][.(key[ngram.i-1],predicted.Words[i])]$Prob[1])
+                    probs[ngram.i] <- as.numeric(model$dts[[ngram.i]][.(key[ngram.i-1],predicted.Words[i]$Word)]$Prob[1])
                 else if(ngram.i == 1)
-                    probs[ngram.i] <- as.numeric(model$dts[[ngram.i]][.(predicted.Words[i])]$Prob[1])
+                    probs[ngram.i] <- as.numeric(model$dts[[ngram.i]][.(predicted.Words[i]$Word)]$Prob[1])
             }
             probs[is.na(probs)] <- 0
             probs
@@ -81,16 +79,13 @@ predictTM <- function(model, phrase, n = 1, ngrams = 4, method = "SBO", alpha = 
         
         # iterate over number of selected words to get their probabilities 
         # in each n-gram model to calculate interpolation
-        for(i in 1:length(predicted.Words)) {
+        for(i in 1:nrow(predicted.Words)) {
             # run recursion over all n-gram models for each word
-            probs <- getIProbs(predicted.Words[i], ngrams)
-            predicted.IProbs[i] <- sum(probs * lambda)
+            probs <- getIProb(predicted.Words[i]$Word, ngrams)
+            predicted.Words[i]$Prob <- sum(probs * lambda)
         }
-        # data frame with results
-        predicted <- data.frame(Word = predicted.Words, 
-                                iprob = predicted.IProbs, 
-                                stringsAsFactors = FALSE)
-        predicted.Words <- predicted[order(predicted$iprob, decreasing = TRUE), ]$Word
+        # data table with results
+        predicted.Words <- predicted.Words[order(-Prob)]
     }
     # cut n words from the top only at the end of selection
     predicted.Words[1:n]

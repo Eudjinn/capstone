@@ -14,7 +14,7 @@ makeTestList <- function(testset, maxdocs, ngrams = 4) {
     testlist
 }
 
-testTM <- function(model, testlist, maxitems, n = 1, ngrams = 4, method = "none", alpha = 1, l = c(0.1, 0.15, 0.3, 0.45), parallel = FALSE) {
+testTM <- function(model, testlist, maxitems, n = 1, method = "none", alpha = 1, l = c(0.1, 0.15, 0.3, 0.45), parallel = FALSE) {
     if(parallel) {
         no_cores <- max(1, detectCores() - 1)
         cl <- makeForkCluster(no_cores)
@@ -34,24 +34,31 @@ testTM <- function(model, testlist, maxitems, n = 1, ngrams = 4, method = "none"
     ###
     #predicted <- parSapply(cl, testpairs, function(y) predictWord1(y, freq.dt.uni, freq.dt.bi, freq.dt.tri, freq.dt.four, freq.dt.five, 1))
     cat("Running predictTM...\n")
-    if(parallel)
+    if(parallel) {
         predicted <- parSapply(cl, testpairs, 
-                            function(y) predictTM(model = model, 
+                            function(y) {
+                                predictTM(model = model, 
                                                   phrase = y, 
                                                   n = n, 
-                                                  ngrams = ngrams, 
                                                   method = method,
                                                   alpha = alpha,
-                                                  l = l))
-    else
+                                                  l = l)
+                                as.character(p$Word)
+                            })
+    }
+    else {
         predicted <- sapply(testpairs, 
-                               function(y) predictTM(model = model, 
+                               function(y) {
+                                   p <- predictTM(model = model, 
                                                      phrase = y, 
                                                      n = n, 
-                                                     ngrams = ngrams, 
                                                      method = method,
                                                      alpha = alpha,
-                                                     l = l))
+                                                     l = l)
+                                   as.character(p$Word)
+                               })
+        
+    }
     predicted <- t(as.matrix(predicted, n))
     predicted[is.na(predicted)] <- "<unk>"
 
