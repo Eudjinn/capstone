@@ -20,8 +20,7 @@ shinyServer(function(input, output) {
     output$words <- renderText({
         prediction <- getPrediction()
         words <- prediction$Word
-        probs <- prediction$Prob
-        paste(words, probs, collapse = "\n")
+        paste(paste0(seq(1:length(words)), ":"), words, collapse = "\n")
     })
     
     wordcloud_rep <- repeatable(wordcloud)
@@ -44,7 +43,13 @@ shinyServer(function(input, output) {
         paste("Selected method:", input$pmethod)
     })
 
-    output$phrase <- renderText({
-        paste("Phrase:", input$phrase)
+    output$sentense <- renderText({
+        prediction <- getPrediction()
+        paste(input$phrase, prediction$Word[1])
+    })
+    
+    output$firstword <- renderText({
+        prediction <- getPrediction()
+        prediction$Word[1]
     })
 })
