@@ -1,6 +1,5 @@
 library(shiny)
 library(wordcloud)
-source("utils.R")
 source("predict.R")
 shinyServer(function(input, output) {
     # read prediction model upon startup
