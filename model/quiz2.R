@@ -127,12 +127,14 @@ quizTest <- function(fit = NULL,
         
     predicted <- sapply(testkeys, 
                         function(y) {
-                            predictTM(model = fit, 
+                            p <- predictTM(model = fit, 
                                       phrase = y, 
                                       n = n,
                                       method = method,
                                       alpha = alpha,
                                       lambda = lambda)
+                            as.character(p$Word)
+                            
                         })
     
     predicted <- t(as.matrix(predicted, n))

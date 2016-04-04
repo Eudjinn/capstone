@@ -148,6 +148,8 @@ cleandoc <- function(doc) {
     # remove numbers
     doc <- gsub("[0-9]+", " ", doc)
 
+    # remove standalone letters unless they are real words like 'a'
+    
     # remove multiple dashes
     doc <- gsub("-{2,}", "", doc)
     # remove standalone dashes
