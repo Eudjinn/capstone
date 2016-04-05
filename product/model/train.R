@@ -90,6 +90,7 @@ cleandt <- function(dt) {
             cat("Removed", length(remove), "records with bad words...\n")
         }
     }
+    dt
 }
 
 # Full training from beginning to end - when all the parameters needed are known.

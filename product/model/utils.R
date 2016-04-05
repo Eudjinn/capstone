@@ -1,4 +1,5 @@
 library(stringi)
+library(gtools)
 
 ########### Util
 getFirstNWordsPattern <- function(n = 1) {
@@ -112,11 +113,100 @@ superpaste <- function(x) {
     s
 }
 
-cleandoc <- function(doc) {
-    # fix '
-    doc <- gsub("’", "'", doc)
-    doc <- iconv(doc, "UTF-8", "ascii", sub = " ")
+asciifydoc <- function(doc) {
+    doc <- gsub("’|‘|′|´", "'", doc)
+    doc <- gsub("\\u0092", "'", doc)  # apostrophe
+    doc <- gsub("“|”|″", "\"", doc)
+    doc <- gsub("…", "...", doc)
+    doc <- gsub("–|—|ー|‑|−|⁃|一|―", "-", doc)
+    doc <- gsub("～", "~", doc)
+    doc <- gsub("€|£", "$", doc)
+    doc <- gsub("：", ":", doc)
+    doc <- gsub("、|，", ",", doc)
+    doc <- gsub("！", "!", doc)
+    
+    doc <- gsub("κ|ύ|ρ|ι|ο|ς", "", doc)
+    doc <- gsub("ṇ", "n", doc)
+    doc <- gsub("ḍ", "d", doc)
+    doc <- gsub("ṁ", "m", doc)
+    doc <- gsub("ṣ", "s", doc)
+    doc <- gsub("ṭ", "t", doc)
+    doc <- gsub("ṛ", "r", doc)
+    doc <- gsub("ῦ", "v", doc)
+    doc <- gsub("ἐ", "e", doc)
+    doc <- gsub("ḥ", "h", doc)
+    doc <- gsub("ﬀ", "ff", doc)
+    doc <- gsub("ﬁ", "fi", doc)
+    doc <- gsub("ᾶ", "a", doc)
+    doc <- gsub("ῆ", "n", doc)
+    doc <- gsub("ἴ", "i", doc)
+    doc <- gsub("ὐ", "v", doc)
+    doc <- gsub("ὶ", "i", doc)
+    doc <- gsub("ὸ", "o", doc)
+    doc <- gsub("ῃ", "n", doc)
 
+    doc <- gsub("·", ".", doc) # ·
+    
+    doc <- gsub("ü", "u", doc) # ü
+    doc <- gsub("é", "e", doc) # é
+    doc <- gsub("ø", "o", doc) # ø
+    doc <- gsub("Ø", "o", doc) # Ø
+    doc <- gsub("é", "e", doc) # é
+    doc <- gsub("é", "e", doc) # é
+    doc <- gsub("ä", "a", doc) # ä
+    doc <- gsub("ô", "o", doc) # ô
+    doc <- gsub("ā", "a", doc) # ā
+    doc <- gsub("ñ", "n", doc) # ñ
+    doc <- gsub("à", "a", doc) # \\u00e0
+    doc <- gsub("ő", "o", doc) # \\u0151
+    doc <- gsub("á", "a", doc) # \\u00e1
+    doc <- gsub("\\u0095", "", doc)
+    doc <- gsub("ö", "o", doc) # \\u00f6
+    doc <- gsub("Ô", "o", doc) # \\u00d4
+    doc <- gsub("â", "a", doc) # \\u00e2
+    doc <- gsub("Ä", "a", doc) # \\u00c4
+    doc <- gsub("ł", "l", doc) # \\u0142
+    doc <- gsub("ğ", "g", doc) # \\u011f
+    doc <- gsub("ş", "s", doc) # \\u015f
+    
+    # \\u0091
+    # \\u0093
+    # \\u0094
+    # \\u0096
+
+    
+    ##################
+#    doc <- ASCIIfy(doc)
+    
+#    doc <- gsub("\\u00b4", "'", doc) # ´
+#    doc <- gsub("\\u00bb", ">", doc) # »
+#    doc <- gsub("\\u00ab", "<", doc) # «
+#    doc <- gsub("\\u00b0", ".", doc) # ° # degree
+    
+#    doc <- gsub("\\u00b7", ".", doc) # ·
+    
+#    doc <- gsub("\\u00fc", "u", doc) # ü
+#    doc <- gsub("\\u00e9", "e", doc) # é
+#    doc <- gsub("\\u00f8", "o", doc) # ø
+#    doc <- gsub("\\u00d8", "o", doc) # Ø
+#    doc <- gsub("\\u00e9", "e", doc) # é
+#    doc <- gsub("\\u00e8", "e", doc) # é
+#    doc <- gsub("\\u00a3", "$", doc) # £
+#    doc <- gsub("\\u00e4", "a", doc) # ä
+#    doc <- gsub("\\u00f4", "o", doc) # ô
+#    doc <- gsub("\\u0101", "a", doc) # ā
+#    doc <- gsub("\\u00f1", "n", doc) # ñ
+    
+    #   325° F
+    #   170° C
+    # get rid of the rest of unknown symbols
+    doc <- iconv(doc, "UTF-8", "ascii", sub = "")
+    
+}
+
+cleandoc <- function(doc) {
+    doc <- asciifydoc(doc)
+    
     doc <- tolower(doc)
 
     # replace urls
@@ -126,7 +216,7 @@ cleandoc <- function(doc) {
     # replace time
     doc <- gsub("[0-9]+:?([0-9]+)? ?(a\\.?m\\.?|p\\.?m\\.?)", " tm-tm ", doc)
     # replace money
-    doc <- gsub("[$£][0-9]*[\\.,]?[0-9]+[k|m]?", " mm-mm ", doc)
+    doc <- gsub("[$][0-9]*[\\.,]?[0-9]+[k|m]?", " mm-mm ", doc)
     # replace ordinals
     doc <- gsub("[0-9]+(rd|th)", " oo-oo ", doc)
     # replace percent
