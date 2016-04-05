@@ -5,8 +5,6 @@ library(parallel)
 library(quanteda)
 library(stringi)
 library(data.table)
-library(tm)
-library(randomForest)
 
 ############################################
 no_cores <- max(1, detectCores() - 1)
@@ -32,16 +30,23 @@ source(file.path("product","model","test.R"))
 source(file.path("product","model","quiz2.R"))
 
 model.path <- file.path("product", "data", "model.rds")
+cleansample.path <- file.path("cache", "cleansample.txt")
 
 ############################################
 
-texts <- readData()
-sampletexts <- getSample(texts, 
-                         sample.p = sample.percent)
+if(!file.exists(cleansample.path)) {
+    texts <- readData()
+    sampletexts <- getSample(texts, 
+                             sample.p = sample.percent)
+    
+    # cleaning does not remove all punctuation.
+    # some of it is used to add tokens.
+    cleansample <- cleanData(sampletexts)
+    writeLines(cleansample, cleansample.path)
+} else {
+    cleansample <- readLines(cleansample.path, encoding = "UTF-8", skipNul = TRUE)
+}
 
-# cleaning does not remove all punctuation.
-# some of it is used to add tokens.
-cleansample <- cleanData(sampletexts)
 ## divide into training and test set
 samplelength <- length(cleansample)
 inTrain <- sample(1:samplelength, samplelength * train.percent)

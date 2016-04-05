@@ -88,16 +88,23 @@ cleandt <- function(dt) {
         badwords <- readLines(badwords.path)
         # they are cleaned already but just in case something was added
         badwords <- cleandoc(badwords)
-        # make regex
-        badwords.regex <- paste0("^", unique(badwords), "$", collapse = "|")
-        badkey <- grep(badwords.regex, dt$Key)
-        badword <- grep(badwords.regex, dt$Word)
         
-        remove <- union(badkey, badword)
-        if(length(remove) > 0) {
-            dt <- dt[-remove]
-            cat("Removed", length(remove), "records with bad words...\n")
-        }
+        #smart removal first, not perfect, traces can be left
+        setkey(dt, Key)
+        dt <- dt[!badwords]
+        setkey(dt, Word)
+        dt <- dt[!badwords]
+        
+        # regex remover, too slow.
+#        badwords.regex <- paste0("^", unique(badwords), "$", collapse = "|")
+#        badkey <- grep(badwords.regex, dt$Key)
+#        badword <- grep(badwords.regex, dt$Word)
+        
+#        remove <- union(badkey, badword)
+#        if(length(remove) > 0) {
+#            dt <- dt[-remove]
+#            cat("Removed", length(remove), "records with bad words...\n")
+#        }
     }
     setkey(dt, Key, Word)
     dt
@@ -163,17 +170,17 @@ trainTM <- function(t = NULL,
             dt <- smooth.n(dts[[i]], ngram.i = i, k = 0)
         }
 
-        # remove unwanted tags and bad words
-        dt <- cleandt(dt)        
-        
         # get rid of rare features:
         if(trimFeatures){
             cat("Trim features...\n")        
             dt <- dt[Freq > minCount]
         }
-        
         # remove redundant columns - only Prob is needed
         dt[, Freq := NULL]
+
+        # remove unwanted tags and bad words
+        dt <- cleandt(dt)        
+        
         # I have no idea when it resets the key - have to be on the safe side
         setkey(dt, Key, Word)
         dt # return result
