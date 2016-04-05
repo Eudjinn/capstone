@@ -1,10 +1,11 @@
 library(shiny)
 library(wordcloud)
-source("utils.R")
-source("predict.R")
+source(file.path("model", "utils.R"))
+source(file.path("model", "predict.R"))
+
 shinyServer(function(input, output) {
     # read prediction model upon startup
-    fit <- readRDS("model.rds")
+    fit <- readRDS("data/model.rds")
     # reread oil prices only when related parameters change, 
     # not when any parameter changes
     getPrediction <- reactive({
