@@ -1,6 +1,5 @@
 badwords.path <- file.path("product","data","remove.txt")
 
-
 # Smoothing functions ============
 # Add-k smoothing
 smooth.n <- function(dt, ngram.i = 1, k = 1, V = 1) {
@@ -16,7 +15,11 @@ smooth.n <- function(dt, ngram.i = 1, k = 1, V = 1) {
         dt[, Prob := (Freq + k)/(SumFreq + k*V)]
         dt[, FreqSmooth := Prob * SumFreq]
     }
-    dt
+    
+    # remove intermediate columns if not needed for debugging    
+    dt[, FreqSmooth := NULL]
+    dt[, SumFreq := NULL]
+
     setkey(dt, Key, Word)
     dt
 }
@@ -57,6 +60,12 @@ smooth.n.gt <- function(dt, ngram.i = 1, k = 1, V = 1) {
         dt[, SumFreqSmooth := sum(FreqSmooth), by = Key]
         dt[, Prob := FreqSmooth/SumFreq] # Dividing by SumFreq causes some probabilities to be more than 1
     }
+
+    # remove intermediate columns if not needed for debugging    
+    dt[, FreqSmooth := NULL]
+    dt[, SumFreq := NULL]
+    dt[, SumFreqSmooth := NULL]
+
     setkey(dt, Key, Word)
     dt
 }
@@ -90,6 +99,7 @@ cleandt <- function(dt) {
             cat("Removed", length(remove), "records with bad words...\n")
         }
     }
+    setkey(dt, Key, Word)
     dt
 }
 
@@ -100,7 +110,7 @@ trainTM <- function(t = NULL,
                     trimFeatures = FALSE, 
                     minCount = 3, 
                     minDoc = 2, 
-                    smoothingType = "none", 
+                    smoothingType = "Ak", 
                     smoothK = 1, 
                     ngrams = 4,
                     ...) {
@@ -161,6 +171,11 @@ trainTM <- function(t = NULL,
             cat("Trim features...\n")        
             dt <- dt[Freq > minCount]
         }
+        
+        # remove redundant columns - only Prob is needed
+        dt[, Freq := NULL]
+        # I have no idea when it resets the key - have to be on the safe side
+        setkey(dt, Key, Word)
         dt # return result
     })
 

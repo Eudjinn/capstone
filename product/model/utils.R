@@ -1,5 +1,4 @@
 library(stringi)
-library(gtools)
 
 ########### Util
 getFirstNWordsPattern <- function(n = 1) {
@@ -124,6 +123,7 @@ asciifydoc <- function(doc) {
     doc <- gsub("：", ":", doc)
     doc <- gsub("、|，", ",", doc)
     doc <- gsub("！", "!", doc)
+    doc <- gsub("\\u0095", "", doc) # don't know what it is
     
     doc <- gsub("κ|ύ|ρ|ι|ο|ς", "", doc)
     doc <- gsub("ṇ", "n", doc)
@@ -160,7 +160,6 @@ asciifydoc <- function(doc) {
     doc <- gsub("à", "a", doc) # \\u00e0
     doc <- gsub("ő", "o", doc) # \\u0151
     doc <- gsub("á", "a", doc) # \\u00e1
-    doc <- gsub("\\u0095", "", doc)
     doc <- gsub("ö", "o", doc) # \\u00f6
     doc <- gsub("Ô", "o", doc) # \\u00d4
     doc <- gsub("â", "a", doc) # \\u00e2
@@ -222,7 +221,7 @@ cleandoc <- function(doc) {
     # replace percent
     doc <- gsub("[0-9]+[\\.,]?[0-9]+%", " pp-pp ", doc)
     # replace some year's
-    doc <- gsub("[0-9]+'s", " ys-ys ", doc)
+    doc <- gsub("[0-9]+'?s", " ys-ys ", doc)
     
     doc <- gsub(" u\\.s\\.", " us-us ", doc)
     doc <- gsub(" i\\.e\\.", " ie-ie ", doc)

@@ -16,7 +16,7 @@ options(mc.cores = no_cores)
 # number of rows from original docs to use
 sample.percent <- 0.01
 # proportion of training set
-train.percent <- 0.8
+train.percent <- 0.9
 #parallel processing
 parallel = TRUE
 
