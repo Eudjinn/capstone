@@ -1,52 +1,5 @@
-makeDTMs <- function(t = NULL, ngrams = 4, trimFeatures = FALSE, minCount = 3, minDoc = 2) {
-    cat("Making DTMs, Trim Features:", trimFeatures, "\n")
-    require(quanteda)
-    
-    # dtms - document term matrix - several
-    dtms <- lapply(1:ngrams, function(i) {
-        # add tags for tokenizing
-        t.tagged <- addTags(t, ngrams = i)
-        dtm <- dfm(t.tagged, ngrams = i, concatenator = " ")
-        #       if(trimFeatures) {
-        # trim rare terms
-        #           dtm <- trim(dtm, minCount = minCount, minDoc = minDoc)
-        #       }
-        dtm
-    })
-    dtms
-}
+badwords.path <- file.path("product","data","remove.txt")
 
-# used for testing as trimming is done within makeDTM
-trimDTMs <- function(dtms = NULL, ngrams = 4, trimFeatures = FALSE, minCount = 3, minDoc = 2) {
-    cat("Triming dtms, Trim Features: ", trimFeatures, "\n")
-    require(quanteda)
-    
-    # dtms - document term matrix - several
-    dtms <- lapply(1:ngrams, function(i) {
-        if(trimFeatures) {
-            # trim rare terms
-            dtm <- trim(dtms[[i]], minCount = minCount, minDoc = minDoc)
-        } else {
-            dtm <- dtms[[i]]
-        }
-        dtm
-    })
-    dtms
-}
-
-makeDTs <- function(dtms = NULL, ngrams = 4) {
-    cat("Making DTs...\n")
-    # dts = data table several 
-    dts <- lapply(1:ngrams, function(i) {
-        dt <- data.table(Key = getFirstNWords(features(dtms[[i]]), i - 1), 
-                         Word = getLastNWords(features(dtms[[i]]), 1),
-                         # Freq = docfreq(dtm.l$onegram, 
-                         # scheme = "count")),
-                         Freq = colSums(dtms[[i]]))
-        dt
-    })
-    dts
-}
 
 # Smoothing functions ============
 # Add-k smoothing
@@ -107,50 +60,41 @@ smooth.n.gt <- function(dt, ngram.i = 1, k = 1, V = 1) {
     setkey(dt, Key, Word)
     dt
 }
+
 #############
-
-smoothDTs <- function(dts = NULL, ngrams = 4, smoothingType = "none", smoothK = 1) {
-    cat("Smoothing DTs, Smoothing Type:", smoothingType, ", k =", smoothK, "\n")
+cleandt <- function(dt) {
+    # EXPERIMENTAL: Remove starts and ends from tables and other tags:
+    # once smoothing is done, tags are not needed for prediction any more
+    cat("Removing tags...\n")        
+    tags <- "ss-ss|ee-ee|ww-ww|tm-tm|mm-mm|oo-oo|us-us|ie-ie|eg-eg|ad-ad|dr-dr|mr-mr|mrs-mrs|dc-dc|nn-nn|ys-ys"
+    tagskey <- grep(tags, dt$Key)
+    tagsword <- grep(tags, dt$Word)
+    remove <- union(tagskey, tagsword)
+    if(length(remove) > 0)
+        dt <- dt[-remove]
     
-    # Add smoothing
-    # Vocabulary size is the length of onegram dt, which is the first in the list
-    voc.size <- nrow(dts[[1]])
-    
-    dts <- lapply(1:ngrams, function(i) {
-        if(smoothingType == "Ak")
-            dt <- smooth.n(dts[[i]], ngram.i = i, k = smoothK, V = voc.size)
-        else if(smoothingType == "GT")
-            dt <- smooth.n.gt(dts[[i]], ngram.i = i, k = smoothK, V = voc.size)
-        else {
-            # if no smoothing selected - calculate probability with k = 0.
-            dt <- smooth.n(dts[[i]], ngram.i = i, k = 0)
+    # remove bad words
+    if(file.exists(badwords.path)) {
+        cat("Removing bad words...\n")
+        badwords <- readLines(badwords.path)
+        # they are cleaned already but just in case something was added
+        badwords <- cleandoc(badwords)
+        # make regex
+        badwords.regex <- paste0("^", unique(badwords), "$", collapse = "|")
+        badkey <- grep(badwords.regex, dt$Key)
+        badword <- grep(badwords.regex, dt$Word)
+        
+        remove <- union(badkey, badword)
+        if(length(remove) > 0) {
+            dt <- dt[-remove]
+            cat("Removed", length(remove), "records with bad words...\n")
         }
-        dt
-    })
-    dts
+    }
 }
 
-cleanDTs <- function(dts = NULL, ngrams = 4, trimFeatures = FALSE, minFreq = 2) {
-    cat("Cleaning DTs...\n")
-    dts <- lapply(1:ngrams, function(i) {
-        # EXPERIMENTAL: Remove starts and ends from tables and other tags:
-        tagskey <- grep("ss-ss|ee-ee|ww-ww", dts[[i]]$Key)
-        if(length(tagskey) > 0)
-            dts[[i]] <- dts[[i]][-tagskey]
-        
-        tagsword <- grep("ss-ss|ee-ee|ww-ww", dts[[i]]$Word)
-        if(length(tagsword) > 0)
-            dts[[i]] <- dts[[i]][-tagsword]
-        
-        # get rid of rare features:
-        if(trimFeatures)
-            dts[[i]] <- dts[[i]][Freq > minFreq]
-        
-        dts[[i]] # return result
-    })
-    dts
-}
-
+# Full training from beginning to end - when all the parameters needed are known.
+# pass vector of character documents and get the model as a result.
+# Smoothing: Ak, GT: Ak - add k, GT - Good-Turing
 trainTM <- function(t = NULL, 
                     trimFeatures = FALSE, 
                     minCount = 3, 
@@ -171,7 +115,7 @@ trainTM <- function(t = NULL,
         
 #        if(trimFeatures)
 #            dtm <- trim(dtm, minCount = minCount, minDoc = minDoc)
-        cat("Create data tables...\n")        
+        cat("Creating data tables...\n")        
         dt <- data.table(Key = getFirstNWords(features(dtm), i - 1), 
                          Word = getLastNWords(features(dtm), 1),
 #                         Freq = docfreq(dtm, scheme = "count"))
@@ -184,9 +128,8 @@ trainTM <- function(t = NULL,
  #       dt <- rbindlist(l) # add unk to dt
         
         rm(dtm) # save some resources, dtm is not needed anymore
-
         
-        # EXPERIMENTAL: Remove starts and ends which came from middle of the 
+        # EXPERIMENTAL: Remove starts and ends which came from the middle of the 
         # string and mean nothing for prediction from tables:
         tagskey <- grep("ss-ss|ee-ee", dt$Key)
         tagsword <- grep("ss-ss|ee-ee", dt$Word)
@@ -196,7 +139,7 @@ trainTM <- function(t = NULL,
             dt <- dt[-remove]
 
         # Smoothing
-        cat("Apply smoothing...\n")        
+        cat("Applying smoothing...\n")        
         if(i == 1) {
             voc.size <<- nrow(dt) # save to upper context for other i
         }
@@ -208,16 +151,9 @@ trainTM <- function(t = NULL,
             # if no smoothing selected - calculate probability with k = 0 (MLE)
             dt <- smooth.n(dts[[i]], ngram.i = i, k = 0)
         }
-        
-        # EXPERIMENTAL: Remove starts and ends from tables and other tags:
-        # once smoothing is done, tags are not needed for prediction any more
-        cat("Remove tags features...\n")        
-        tags <- "ss-ss|ee-ee|ww-ww|tm-tm|mm-mm|oo-oo|us-us|ie-ie|eg-eg|ad-ad|dr-dr|mr-mr|mrs-mrs|dc-dc|nn-nn|ys-ys"
-        tagskey <- grep(tags, dt$Key)
-        tagsword <- grep(tags, dt$Word)
-        remove <- union(tagskey, tagsword)
-        if(length(remove) > 0)
-            dt <- dt[-remove]
+
+        # remove unwanted tags and bad words
+        dt <- cleandt(dt)        
         
         # get rid of rare features:
         if(trimFeatures){
@@ -233,47 +169,4 @@ trainTM <- function(t = NULL,
         smoothing = smoothingType,
         dts = dts)
     fit
-}
-
-# Full training from beginning to end - when all the parameters needed are known.
-# pass vector of character documents and get the model as a result.
-# Smoothing: Ak, GT: Ak - add k, GT - Good-Turing
-
-if(0) { #fragmented version
-    trainTM <- function(t = NULL, 
-                        trimFeatures = FALSE, 
-                        minCount = 3, 
-                        minDoc = 2, 
-                        smoothingType = "none", 
-                        smoothK = 1, 
-                        ngrams = 4,
-                        ...) {
-        cat("Training TM...", "Trim features:", trimFeatures, "Smoothing:", smoothingType, "\n")
-        require(quanteda)
-        
-        # dtms - document term matrix - several. trimming inside.
-        dtms <- makeDTMs(t = t, 
-                         ngrams = ngrams, 
-                         trimFeatures = trimFeatures, 
-                         minCount = minCount, 
-                         minDoc = minDoc)
-        # make dts from dtms
-        dts <- makeDTs(dtms = dtms, 
-                       ngrams = ngrams)
-        
-        # apply smoothing
-        dts <- smoothDTs(dts, 
-                         smoothingType = smoothingType, 
-                         smoothK = smoothK, 
-                         ngrams = ngrams)
-        
-        dts <- cleanDTs(dts,
-                        ngrams = ngrams,
-                        trimFeatures = trimFeatures,
-                        minFreq = minCount)
-        # return the model
-        fit <- list(#dtms = dtms,
-            dts = dts)
-        fit
-    }
 }

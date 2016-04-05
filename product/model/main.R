@@ -14,7 +14,7 @@ no_cores <- max(1, detectCores() - 1)
 options(mc.cores = no_cores)
 #options(datatable.verbose=TRUE)
 # number of rows from original docs to use
-sample.percent <- 0.25
+sample.percent <- 0.01
 # proportion of training set
 train.percent <- 0.8
 #parallel processing
@@ -24,12 +24,14 @@ ngrams <- 4
 
 ############################################
 
-source("model/utils.R")
-source("model/preprocess.R")
-source("model/train.R")
-source("model/predict.R")
-source("model/test.R")
-source("model/quiz2.R")
+source(file.path("product","model","utils.R"))
+source(file.path("product","model","preprocess.R"))
+source(file.path("product","model","train.R"))
+source(file.path("product","model","predict.R"))
+source(file.path("product","model","test.R"))
+source(file.path("product","model","quiz2.R"))
+
+model.path <- file.path("product", "data", "model.rds")
 
 ############################################
 
@@ -55,7 +57,7 @@ fit<- trainTM(t = train,
               smoothK = 5,
               ngrams = 4)
 
-saveRDS(fit, "model.rds")
+saveRDS(fit, model.path)
 
 # remove end of sentence chars as they are not needed after model was trained.
 # train <- cleanEnds(train)

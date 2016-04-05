@@ -91,30 +91,3 @@ predictTM <- function(model, phrase, n = 1, method = "SBO", alpha = 0.4, lambda 
     # cut n words from the top only at the end of selection
     predicted.Words[1:n]
 }
-
-# WILL NOT WORK WITH 4-GRAM
-probTM <- function(model, phrase, word) {
-    # stupid protection from phrases with less then 4 words.
-    # need to be rewritten
-    dummy <- "<notaword> <notaword> <notaword> <notaword>"
-    phrase <- paste(dummy, phrase)
-    phrase.four <- getLastNWords(phrase, 4)
-    phrase.three <- getLastNWords(phrase, 3)
-    phrase.two <- getLastNWords(phrase, 2)
-    phrase.one <- getLastNWords(phrase, 1)
-
-    match <- model$dts[[5]][phrase.four][Word == word]
-    if(length(match$Word) == 0) {
-        match <- model$dts[[4]][phrase.three][Word == word]
-        if(length(match$Word) == 0) {
-            match <- model$dts[[3]][phrase.two][Word == word]
-            if(length(match$Word) == 0) {
-                match <- model$dts[[2]][phrase.one][Word == word]
-                if(length(match$Word) == 0){
-                    match <- data.table(Key = NA, Word = NA, Freq = 0, Prob = 0, FreqSmooth = 0)
-                }
-            }
-        }
-    }
-    cbind(phrase.four, match)
-}

@@ -148,7 +148,7 @@ cleandoc <- function(doc) {
     # remove 
 #    doc <- gsub("[$]?[+-]?[0-9]{1,}(?:[0-9]*(?:[.,][0-9]{1,})?|(?:,[0-9]{1,})*(?:\\.[0-9]{1,})?|(?:\\.[0-9]{1,})*(?:,[0-9]{1,})?)[+%]?", " nn-nn ", doc)
     # remove numbers
-    doc <- gsub("[0-9]+", " ", doc)
+    doc <- gsub("[0-9]+", "", doc)
 
     # remove standalone letters unless they are real words like 'a'
     

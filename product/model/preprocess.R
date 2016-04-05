@@ -1,9 +1,13 @@
+blogs.path <- file.path("final","en_US","en_US.blogs.txt")
+news.path <- file.path("final","en_US","en_US.news.txt")
+twitter.path <- file.path("final","en_US","en_US.twitter.txt")
+          
 ## Loading data
 readData <- function() {
     cat("Reading files...\n")
-    blogs <- readLines("final/en_US/en_US.blogs.txt", encoding = "UTF-8", skipNul = TRUE)
-    news <- readLines("final/en_US/en_US.news.txt", encoding = "UTF-8", skipNul = TRUE)
-#    twitter <- readLines("final/en_US/en_US.twitter.txt", encoding = "UTF-8", skipNul = TRUE)
+    blogs <- readLines(blogs.path, encoding = "UTF-8", skipNul = TRUE)
+    news <- readLines(news.path, encoding = "UTF-8", skipNul = TRUE)
+#    twitter <- readLines(twitter.path, encoding = "UTF-8", skipNul = TRUE)
     
     all <- c(blogs, news) #, twitter)
 #    all <- blogs
