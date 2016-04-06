@@ -12,9 +12,9 @@ no_cores <- max(1, detectCores() - 1)
 options(mc.cores = no_cores)
 #options(datatable.verbose=TRUE)
 # number of rows from original docs to use
-sample.percent <- 0.01
+sample.percent <- 0.8
 # proportion of training set
-train.percent <- 0.9
+train.percent <- 0.95
 #parallel processing
 parallel = TRUE
 
