@@ -11,9 +11,9 @@ no_cores <- max(1, detectCores() - 1)
 options(mc.cores = no_cores)
 #options(datatable.verbose=TRUE)
 # number of rows from original docs to use
-sample.percent <- 0.05
+sample.percent <- 0.25
 # proportion of training set
-train.percent <- 0.95
+train.percent <- 0.9
 
 ngrams <- 4
 
@@ -28,6 +28,7 @@ source(file.path("product","model","quiz2.R"))
 
 model.path <- file.path("product", "data", "model.rds")
 cleansample.path <- file.path("cache", "cleansample.txt")
+badwords.path <- file.path("product","data","remove.txt")
 
 ############################################
 

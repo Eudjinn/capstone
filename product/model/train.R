@@ -1,5 +1,3 @@
-badwords.path <- file.path("product","data","remove.txt")
-
 # Smoothing functions ============
 # Add-k smoothing
 smooth.n <- function(dt, ngram.i = 1, k = 1, V = 1) {
