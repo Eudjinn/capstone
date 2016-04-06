@@ -1,7 +1,6 @@
 # remove everything from previous sessions
 rm(list = ls())
 
-library(parallel)
 library(quanteda)
 library(stringi)
 library(data.table)
@@ -12,11 +11,9 @@ no_cores <- max(1, detectCores() - 1)
 options(mc.cores = no_cores)
 #options(datatable.verbose=TRUE)
 # number of rows from original docs to use
-sample.percent <- 0.8
+sample.percent <- 0.05
 # proportion of training set
 train.percent <- 0.95
-#parallel processing
-parallel = TRUE
 
 ngrams <- 4
 
@@ -47,6 +44,11 @@ if(!file.exists(cleansample.path)) {
     cleansample <- readLines(cleansample.path, encoding = "UTF-8", skipNul = TRUE)
 }
 
+# get file with bad words
+if(file.exists(badwords.path)) {
+    badwords <- readLines(badwords.path)
+}    
+
 ## divide into training and test set
 samplelength <- length(cleansample)
 inTrain <- sample(1:samplelength, samplelength * train.percent)
@@ -64,16 +66,12 @@ fit<- trainTM(t = train,
 
 saveRDS(fit, model.path)
 
-# remove end of sentence chars as they are not needed after model was trained.
-# train <- cleanEnds(train)
-test <- cleanEnds(test)
-
 # test
 testlist <- makeTestList(test, maxdocs = 500, ngrams = ngrams)
 #tr.Ak.trim <- testTM(fit.Ak.trim, testlist, n = 3, maxitems = 1000, ngrams = ngrams, method = "I", l = c(0.1, 0.15, 0.3, 0.45))
-tr.GT <- testTM(fit, testlist, n = 3, maxitems = 1000, parallel = FALSE, method = "none")
-tr.GTsbo <- testTM(fit, testlist, n = 3, maxitems = 1000, parallel = FALSE, method = "SBO", alpha = 0.4)
-tr.GTi <- testTM(fit, testlist, n = 3, maxitems = 1000, parallel = FALSE, method = "I", l = c(0.1, 0.15, 0.3, 0.45))
+tr.GT <- testTM(fit, testlist, n = 3, maxitems = 1000, method = "none")
+tr.GTsbo <- testTM(fit, testlist, n = 3, maxitems = 1000, method = "SBO", alpha = 0.4)
+tr.GTi <- testTM(fit, testlist, n = 3, maxitems = 1000, method = "I", l = c(0.1, 0.15, 0.3, 0.45))
 
 q2 <- quizTest(fit = fit, testkeys = q2.keys, testwords = q2.words, n = 3, method = "none")
 q2sbo <- quizTest(fit = fit, testkeys = q2.keys, testwords = q2.words, n = 3, method = "SBO", alpha = 0.4)
@@ -83,5 +81,5 @@ q3 <- quizTest(fit = fit, testkeys = q3.keys, testwords = q3.words, n = 3, metho
 q3sbo <- quizTest(fit = fit, testkeys = q3.keys, testwords = q3.words, n = 3, method = "SBO", alpha = 0.4)
 q3i <- quizTest(fit = fit, testkeys = q3.keys, testwords = q3.words, n = 3, method = "I", l = c(0.1, 0.15, 0.3, 0.45))
 
-#predictTM(model = fit, phrase = "see arctic monkeys this", n = 5, ngrams = 4, method = "I", l = c(0.1, 0.15, 0.3, 0.45))
+#predictTM(model = fit, phrase = "see arctic monkeys this", n = 5, method = "I", l = c(0.1, 0.15, 0.3, 0.45))
 

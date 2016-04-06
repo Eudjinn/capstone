@@ -14,51 +14,28 @@ makeTestList <- function(testset, maxdocs, ngrams = 4) {
     testlist
 }
 
-testTM <- function(model, testlist, maxitems, n = 1, method = "none", alpha = 1, l = c(0.1, 0.15, 0.3, 0.45), parallel = FALSE) {
-    if(parallel) {
-        no_cores <- max(1, detectCores() - 1)
-        cl <- makeForkCluster(no_cores)
-    }
-    #testlist <- parLapply(cl, tm.all.sample.test, function(x) splitStringToSet(x$content, n = 4))
-    #testpairs <- parSapply(cl, testlist, function(x) x$pair)
+testTM <- function(model, testlist, maxitems, n = 1, method = "none", alpha = 1, l = c(0.1, 0.15, 0.3, 0.45)) {
     testpairs <- sapply(testlist, function(x) { if(length(x$key) > 0) x$key })
     testpairs <- as.character(unlist(testpairs))
     nitems <- min(length(testpairs), maxitems)
     
     testpairs <- testpairs[1:nitems]
-    #testwords <- parSapply(cl, testlist, function(x) x$word)
     testwords <- sapply(testlist, function(x) x$word)
     testwords <- as.character(unlist(testwords))
     testwords <- testwords[1:nitems]
 
-    ###
-    #predicted <- parSapply(cl, testpairs, function(y) predictWord1(y, freq.dt.uni, freq.dt.bi, freq.dt.tri, freq.dt.four, freq.dt.five, 1))
     cat("Running predictTM...\n")
-    if(parallel) {
-        predicted <- parSapply(cl, testpairs, 
-                            function(y) {
-                                predictTM(model = model, 
-                                                  phrase = y, 
-                                                  n = n, 
-                                                  method = method,
-                                                  alpha = alpha,
-                                                  l = l)
-                                as.character(p$Word)
-                            })
-    }
-    else {
-        predicted <- sapply(testpairs, 
-                               function(y) {
-                                   p <- predictTM(model = model, 
-                                                     phrase = y, 
-                                                     n = n, 
-                                                     method = method,
-                                                     alpha = alpha,
-                                                     l = l)
-                                   as.character(p$Word)
-                               })
+    predicted <- sapply(testpairs, 
+                           function(y) {
+                               p <- predictTM(model = model, 
+                                                 phrase = y, 
+                                                 n = n, 
+                                                 method = method,
+                                                 alpha = alpha,
+                                                 l = l)
+                               as.character(p$Word)
+                           })
         
-    }
     predicted <- t(as.matrix(predicted, n))
     predicted[is.na(predicted)] <- "<unk>"
 
@@ -77,7 +54,5 @@ testTM <- function(model, testlist, maxitems, n = 1, method = "none", alpha = 1,
                                         equal),
                    matches = matches,
                    accuracy = matches["TRUE"]/(matches["TRUE"] + matches["FALSE"]))
-    if(parallel) 
-        stopCluster(cl)
     result
 }

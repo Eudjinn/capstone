@@ -83,28 +83,11 @@ cleandt <- function(dt) {
         dt <- dt[-remove]
     
     # remove bad words
-    if(file.exists(badwords.path)) {
-        cat("Removing bad words...\n")
-        badwords <- readLines(badwords.path)
-        # they are cleaned already but just in case something was added
-        badwords <- cleandoc(badwords)
-        
-        #smart removal first, not perfect, traces can be left
+    if(exists(badwords)) {
         setkey(dt, Key)
         dt <- dt[!badwords]
         setkey(dt, Word)
         dt <- dt[!badwords]
-        
-        # regex remover, too slow.
-#        badwords.regex <- paste0("^", unique(badwords), "$", collapse = "|")
-#        badkey <- grep(badwords.regex, dt$Key)
-#        badword <- grep(badwords.regex, dt$Word)
-        
-#        remove <- union(badkey, badword)
-#        if(length(remove) > 0) {
-#            dt <- dt[-remove]
-#            cat("Removed", length(remove), "records with bad words...\n")
-#        }
     }
     setkey(dt, Key, Word)
     dt
@@ -128,7 +111,8 @@ trainTM <- function(t = NULL,
     # dtms - document term matrix - several. trimming inside.
     dts <- lapply(1:ngrams, function(i) {
         # add tags for tokenizing
-        t.tagged <- addTags(t, ngrams = i)
+        cat("Tagging...\n")
+        t.tagged <- addtags(t, ngrams = i)
         dtm <- dfm(t.tagged, ngrams = i, concatenator = " ")
         
 #        if(trimFeatures)
@@ -147,15 +131,6 @@ trainTM <- function(t = NULL,
         
         rm(dtm) # save some resources, dtm is not needed anymore
         
-        # EXPERIMENTAL: Remove starts and ends which came from the middle of the 
-        # string and mean nothing for prediction from tables:
-        tagskey <- grep("ss-ss|ee-ee", dt$Key)
-        tagsword <- grep("ss-ss|ee-ee", dt$Word)
-        # remove only when both tagskey and tagsword ara tags
-        remove <- intersect(tagskey, tagsword)
-        if(length(remove) > 0)
-            dt <- dt[-remove]
-
         # Smoothing
         cat("Applying smoothing...\n")        
         if(i == 1) {
@@ -169,7 +144,7 @@ trainTM <- function(t = NULL,
             # if no smoothing selected - calculate probability with k = 0 (MLE)
             dt <- smooth.n(dts[[i]], ngram.i = i, k = 0)
         }
-
+        
         # get rid of rare features:
         if(trimFeatures){
             cat("Trim features...\n")        

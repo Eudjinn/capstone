@@ -112,7 +112,11 @@ superpaste <- function(x) {
     s
 }
 
-asciifydoc <- function(doc) {
+# if type == "document" - heavy cleaning.
+# if type == "string" - only prepare for prediction
+asciify <- function(doc, type = "string") {
+    if(type == "document")
+        cat("Replacing non-ASCII quotes, dashes, etc. with ASCII symbols...\n")
     doc <- gsub("’|‘|′|´", "'", doc)
     doc <- gsub("\\u0092", "'", doc)  # apostrophe
     doc <- gsub("“|”|″", "\"", doc)
@@ -125,104 +129,55 @@ asciifydoc <- function(doc) {
     doc <- gsub("！", "!", doc)
     doc <- gsub("\\u0095", "", doc) # don't know what it is
     
-    doc <- gsub("κ|ύ|ρ|ι|ο|ς", "", doc)
-    doc <- gsub("ṇ", "n", doc)
-    doc <- gsub("ḍ", "d", doc)
-    doc <- gsub("ṁ", "m", doc)
-    doc <- gsub("ṣ", "s", doc)
-    doc <- gsub("ṭ", "t", doc)
-    doc <- gsub("ṛ", "r", doc)
-    doc <- gsub("ῦ", "v", doc)
-    doc <- gsub("ἐ", "e", doc)
-    doc <- gsub("ḥ", "h", doc)
-    doc <- gsub("ﬀ", "ff", doc)
-    doc <- gsub("ﬁ", "fi", doc)
-    doc <- gsub("ᾶ", "a", doc)
-    doc <- gsub("ῆ", "n", doc)
-    doc <- gsub("ἴ", "i", doc)
-    doc <- gsub("ὐ", "v", doc)
-    doc <- gsub("ὶ", "i", doc)
-    doc <- gsub("ὸ", "o", doc)
-    doc <- gsub("ῃ", "n", doc)
-
-    doc <- gsub("·", ".", doc) # ·
-    
-    doc <- gsub("ü", "u", doc) # ü
-    doc <- gsub("é", "e", doc) # é
-    doc <- gsub("ø", "o", doc) # ø
-    doc <- gsub("Ø", "o", doc) # Ø
-    doc <- gsub("é", "e", doc) # é
-    doc <- gsub("é", "e", doc) # é
-    doc <- gsub("ä", "a", doc) # ä
-    doc <- gsub("ô", "o", doc) # ô
-    doc <- gsub("ā", "a", doc) # ā
-    doc <- gsub("ñ", "n", doc) # ñ
-    doc <- gsub("à", "a", doc) # \\u00e0
-    doc <- gsub("ő", "o", doc) # \\u0151
-    doc <- gsub("á", "a", doc) # \\u00e1
-    doc <- gsub("ö", "o", doc) # \\u00f6
-    doc <- gsub("Ô", "o", doc) # \\u00d4
-    doc <- gsub("â", "a", doc) # \\u00e2
-    doc <- gsub("Ä", "a", doc) # \\u00c4
-    doc <- gsub("ł", "l", doc) # \\u0142
-    doc <- gsub("ğ", "g", doc) # \\u011f
-    doc <- gsub("ş", "s", doc) # \\u015f
-    
-    # \\u0091
-    # \\u0093
-    # \\u0094
-    # \\u0096
-
-    
-    ##################
-#    doc <- ASCIIfy(doc)
-    
-#    doc <- gsub("\\u00b4", "'", doc) # ´
-#    doc <- gsub("\\u00bb", ">", doc) # »
-#    doc <- gsub("\\u00ab", "<", doc) # «
-#    doc <- gsub("\\u00b0", ".", doc) # ° # degree
-    
-#    doc <- gsub("\\u00b7", ".", doc) # ·
-    
-#    doc <- gsub("\\u00fc", "u", doc) # ü
-#    doc <- gsub("\\u00e9", "e", doc) # é
-#    doc <- gsub("\\u00f8", "o", doc) # ø
-#    doc <- gsub("\\u00d8", "o", doc) # Ø
-#    doc <- gsub("\\u00e9", "e", doc) # é
-#    doc <- gsub("\\u00e8", "e", doc) # é
-#    doc <- gsub("\\u00a3", "$", doc) # £
-#    doc <- gsub("\\u00e4", "a", doc) # ä
-#    doc <- gsub("\\u00f4", "o", doc) # ô
-#    doc <- gsub("\\u0101", "a", doc) # ā
-#    doc <- gsub("\\u00f1", "n", doc) # ñ
-    
-    #   325° F
-    #   170° C
+    # remove all strings containing non-ascii symbols from document
+    if(type == "document") {
+        cat("Removing strings containing other non-ASCII symbols...\n")
+        remove <- grep("I_WAS_NOT_ASCII", iconv(doc, "latin1", "ASCII", sub="I_WAS_NOT_ASCII"))
+        if(length(remove) > 0)
+            doc <- doc[-remove]
+    }
+    doc
     # get rid of the rest of unknown symbols
-    doc <- iconv(doc, "UTF-8", "ascii", sub = "")
-    
+#    doc <- iconv(doc, "UTF-8", "ascii", sub = "")
 }
 
-cleandoc <- function(doc) {
-    doc <- asciifydoc(doc)
-    
+# if type == "document" - heavy cleaning.
+# if type == "string" - only prepare for prediction
+cleandoc <- function(doc, type = "string") {
+    doc <- asciify(doc, type)
+    if(type == "document")
+        cat("Lowercasing...\n")
     doc <- tolower(doc)
 
     # replace urls
+    if(type == "document")
+        cat("Replacing URLS...\n")
     doc <- gsub("https?:\\/\\/(www)?\\.?[a-z0-9\\.\\-]+(\\/?[a-z0-9\\.=\\+#&_~\\-]+)+\\/?\\??[a-z0-9=\\.\\/\\+&#_~\\-]+", " ww-ww ", doc)
     doc <- gsub("www\\.[a-z0-9\\.\\-]+(\\/?[a-z0-9\\.=\\+#&_~\\-]+)+\\/?\\??[a-z0-9=\\.\\/\\+&#_~\\-]+", " ww-ww ", doc)
     
     # replace time
+    if(type == "document")
+        cat("Replacing recognized time...\n")
     doc <- gsub("[0-9]+:?([0-9]+)? ?(a\\.?m\\.?|p\\.?m\\.?)", " tm-tm ", doc)
     # replace money
+    if(type == "document")
+        cat("Replacing recognized money...\n")
     doc <- gsub("[$][0-9]*[\\.,]?[0-9]+[k|m]?", " mm-mm ", doc)
     # replace ordinals
+    if(type == "document")
+        cat("Replacing recognized ordinals...\n")
     doc <- gsub("[0-9]+(rd|th)", " oo-oo ", doc)
     # replace percent
+    if(type == "document")
+        cat("Replacing recognized percentages...\n")
     doc <- gsub("[0-9]+[\\.,]?[0-9]+%", " pp-pp ", doc)
     # replace some year's
+    if(type == "document")
+        cat("Replacing recognized years with tag...\n")
     doc <- gsub("[0-9]+'?s", " ys-ys ", doc)
     
+    if(type == "document")
+        cat("Replacing common short abbreviations...\n")
     doc <- gsub(" u\\.s\\.", " us-us ", doc)
     doc <- gsub(" i\\.e\\.", " ie-ie ", doc)
     doc <- gsub(" e\\.g\\.", " eg-eg ", doc)
@@ -232,15 +187,15 @@ cleandoc <- function(doc) {
     doc <- gsub(" mrs\\. ", " mrs-mrs ", doc)
     doc <- gsub(" d\\.c\\.", " dc-dc", doc)
     
-    # remove all standalone groups with numbers
+    # remove all groups with numbers
+    if(type == "document")
+        cat("Replacing groups of unrecognized numbers...\n")
     doc <- gsub("[ \\.#,!\\+\\*\\-^&]\\(?[\\+\\*\\-]?([0-9]{1,}[, &=/\\+:\\.\\*\\-]*)+\\)?[ \\.,!#\\+\\*\\-^&]?", " nn-nn ", doc)
-    # remove 
-#    doc <- gsub("[$]?[+-]?[0-9]{1,}(?:[0-9]*(?:[.,][0-9]{1,})?|(?:,[0-9]{1,})*(?:\\.[0-9]{1,})?|(?:\\.[0-9]{1,})*(?:,[0-9]{1,})?)[+%]?", " nn-nn ", doc)
-    # remove numbers
+    # remove numbers if they are left for some strange reason
     doc <- gsub("[0-9]+", "", doc)
 
-    # remove standalone letters unless they are real words like 'a'
-    
+    if(type == "document")
+        cat("Removing and fixing some other characters...\n")
     # remove multiple dashes
     doc <- gsub("-{2,}", "", doc)
     # remove standalone dashes
@@ -252,30 +207,44 @@ cleandoc <- function(doc) {
     # remove star
     doc <- gsub("\\*", "", doc)
     
-    doc <- gsub("[\\(\\),:><\\+/]", " ", doc)
+    doc <- gsub("[\\(\\):/]", " ", doc)
     doc <- gsub("[><\\+]", "", doc)
 
-    # collapse double apostropes in one space
+    # collapse double apostrophes in one space
     doc <- gsub("[']{2,}", " ", doc)
     
 #---------        
-    # remove the dot in the beginning of the string
-    doc <- gsub("^[?!\\.;]+ ?", "", doc) 
+    # remove the dot and other stuff in the beginning of the string
+    doc <- gsub("^[?!\\.;,:'\"]+ ?", "", doc) 
     
     # replace !.?; with ". ", treating multiple as one in the middle too.
-    doc <- gsub("( ?[?!.;]+ ?)+", ". ", doc) 
+    doc <- gsub("( ?[?!\\.;,:]+ ?)+", ". ", doc) 
 
 #    doc <- gsub("^", "ss-ss ", doc)
 #    doc <- gsub("$", " ee-ee", doc)
 #---------
-    
-    # replace all the unusual chars with space except '-<>
-    doc <- gsub("[^[:alnum:]['-<>?!]", " ", doc)
 
+    # this is needed only when cleaning documents for model training
+    if(type == "document") {
+        #EXPERIMENTAL - divide strings by punctuation
+        cat("Dividing strings into substrings at punctuation points...\n")
+        doc <- unlist(strsplit(doc, "\\."))
+    } else if(type == "string") { # no need to have punctuation for prediction
+        doc <- gsub("( ?[?!\\.;,:]+ ?)+", ". ", doc) 
+    }
+
+    # replace all the unusual chars with space except '-
+    doc <- gsub("[^[:alnum:]['-]", " ", doc)
+    
+    if(type == "document")
+        cat("Collapsing redundant spaces and empty lines after cleaning...\n")
     # collapse spaces in one space
     doc <- gsub("[[:space:]]{2,}", " ", doc)
     # remove spaces in the beginning and at the end
     doc <- gsub("^ | $", "", doc)
+    
+    # get rid of empty strings
+    doc <- doc[nchar(doc) > 0]
     
     doc
 }
@@ -284,35 +253,13 @@ addtags <- function(doc, ngrams = 4) {
     if(ngrams > 1)
     {
         keylen <- ngrams - 1
-        #end of string !.? replace with ee-ee
         e <- paste(rep(" ee-ee", keylen), collapse = "")
         s <- paste(rep("ss-ss ", keylen), collapse = "")
-        es <- paste(e,s, collapse = "")
-        doc <- gsub("[?!.;]+$", e, doc)
-        # replace !.? with ee-ee ss-ss, treating multiple as one in the middle too.
-        doc <- gsub("[?.!;]+", es, doc)
-        
         doc <- gsub("^", s, doc)
         doc <- gsub("$", e, doc)
     
-        # collapse duplicated ee-ee which happens when end of sentence and end of line
-        eepattern <- paste0(e, e, "$", collapse = "")
-        doc <- gsub(eepattern, e, doc)
-        
         # collapse spaces in one space
         doc <- gsub("[[:space:]]{2,}", " ", doc)
     }    
-    doc
-}
-
-cleanEnds <- function(doc) {
-    # replace !.? with " "
-    doc <- gsub("[?.!;]+", " ", doc)
-    
-    # collapse spaces in one space
-    doc <- gsub("[[:space:]]{2,}", " ", doc)
-    # remove spaces in the beginning and at the end
-    doc <- gsub("^ | $", "", doc)
-    
     doc
 }

@@ -1,3 +1,6 @@
+library(qdap)
+library(stringi)
+
 blogs.path <- file.path("final","en_US","en_US.blogs.txt")
 news.path <- file.path("final","en_US","en_US.news.txt")
 twitter.path <- file.path("final","en_US","en_US.twitter.txt")
@@ -25,11 +28,12 @@ getSample <- function(text, sample.p = 0.01) {
 ## cleaning
 cleanData <- function(textdata) {
     cat("Cleaning...\n")
-    textdata <- cleandoc(textdata)
+    textdata <- cleandoc(textdata, type = "document")
+    cat("Removing stopwords to find short meaningless strings that can be deleted...\n")
+    nostopwords <- rm_stopwords(textdata, separate = FALSE)
+    # identify docs which are noisy and are not good for word prediction
+    wordscount <- stri_count_words(nostopwords)
+    # remove docs with less than 3 meaningful words (without stopwords)
+    textdata <- textdata[wordscount > 3]
     textdata
-}
-
-addTags <- function(textdata, ngrams = 4) {  
-    cat("Tagging...\n")
-    textdata <- addtags(textdata, ngrams)
 }

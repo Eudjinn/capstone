@@ -10,7 +10,7 @@ predictTM <- function(model, phrase, n = 1, method = "SBO", alpha = 0.4, lambda 
     dummy <- paste(rep("ss-ss", ngrams), collapse = " ")
     phrase <- tolower(phrase)
     phrase <- paste(dummy, phrase)
-    phrase <- cleandoc(phrase)
+    phrase <- cleandoc(phrase, type = "string")
     
     #    s <- unlist(strsplit(phrase, split = " "))
     #    s.length <- length(s)
