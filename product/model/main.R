@@ -11,7 +11,7 @@ no_cores <- max(1, detectCores() - 1)
 options(mc.cores = no_cores)
 #options(datatable.verbose=TRUE)
 # number of rows from original docs to use
-sample.percent <- 0.25
+sample.percent <- 0.05
 # proportion of training set
 train.percent <- 0.9
 
@@ -63,7 +63,8 @@ fit<- trainTM(t = train,
               minDoc = 3, 
               smoothingType = "GT", 
               smoothK = 5,
-              ngrams = 4)
+              ngrams = 4,
+              delete = badwords)
 
 saveRDS(fit, model.path)
 

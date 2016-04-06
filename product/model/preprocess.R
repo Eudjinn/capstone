@@ -1,4 +1,4 @@
-library(qdap)
+library(qdap) # rm_stopwords
 library(stringi)
 
 blogs.path <- file.path("final","en_US","en_US.blogs.txt")

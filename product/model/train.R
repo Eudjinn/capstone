@@ -69,7 +69,7 @@ smooth.n.gt <- function(dt, ngram.i = 1, k = 1, V = 1) {
 }
 
 #############
-cleandt <- function(dt) {
+cleandt <- function(dt, delete = NULL) {
     # EXPERIMENTAL: Remove starts and ends from tables and other tags:
     # once smoothing is done, tags are not needed for prediction any more
     cat("Removing tags...\n")        
@@ -81,11 +81,12 @@ cleandt <- function(dt) {
         dt <- dt[-remove]
     
     # remove bad words
-    if(exists(badwords)) {
+    if(!is.null(delete)) {
+        cat("Removing words from deletion list...\n")        
         setkey(dt, Key)
-        dt <- dt[!badwords]
+        dt <- dt[!delete]
         setkey(dt, Word)
-        dt <- dt[!badwords]
+        dt <- dt[!delete]
     }
     setkey(dt, Key, Word)
     dt
@@ -101,6 +102,7 @@ trainTM <- function(t = NULL,
                     smoothingType = "Ak", 
                     smoothK = 1, 
                     ngrams = 4,
+                    delete = NULL,
                     ...) {
     cat("Training TM...", "Trim features:", trimFeatures, "Smoothing:", smoothingType, "\n")
     require(quanteda)
@@ -152,7 +154,7 @@ trainTM <- function(t = NULL,
         dt[, Freq := NULL]
 
         # remove unwanted tags and bad words
-        dt <- cleandt(dt)        
+        dt <- cleandt(dt, delete)        
         
         # I have no idea when it resets the key - have to be on the safe side
         setkey(dt, Key, Word)
