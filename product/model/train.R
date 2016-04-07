@@ -84,9 +84,10 @@ cleandt <- function(dt, delete = NULL, trimFeatures = FALSE, threshold = 1) {
     # once smoothing is done, tags are not needed for prediction any more
     cat("Removing tags...\n")        
     tags <- "ss-ss|ee-ee|ww-ww|tm-tm|mm-mm|oo-oo|us-us|ie-ie|eg-eg|ad-ad|dr-dr|mr-mr|mrs-mrs|dc-dc|nn-nn|ys-ys|nx-nx|sx-sx"
-    tagskey <- grep(tags, dt$Key)
+#    tagskey <- grep(tags, dt$Key)
     tagsword <- grep(tags, dt$Word)
-    remove <- union(tagskey, tagsword)
+#    remove <- union(tagskey, tagsword)
+    remove <- tagsword
     if(length(remove) > 0)
         dt <- dt[-remove]
     

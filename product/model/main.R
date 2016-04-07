@@ -84,5 +84,5 @@ q3 <- quizTest(fit = fit, testkeys = q3.keys, testwords = q3.words, n = 3, metho
 q3sbo <- quizTest(fit = fit, testkeys = q3.keys, testwords = q3.words, n = 3, method = "SBO", alpha = 0.4)
 q3i <- quizTest(fit = fit, testkeys = q3.keys, testwords = q3.words, n = 3, method = "I", l = c(0.1, 0.15, 0.3, 0.45))
 
-#predictTM(model = fit, phrase = "see arctic monkeys this", n = 5, method = "I", l = c(0.1, 0.15, 0.3, 0.45))
+#predictTM(model = fit, phrase = "see arctic monkeys this", n = 5, method = "I", alpha = 0.4, l = c(0.1, 0.15, 0.3, 0.45))
 

@@ -47,7 +47,7 @@ predictTM <- function(model, phrase, n = 1, method = "SBO", alpha = 0.4, lambda 
             if(nrow(found) > 0) { # do something only if found something
                 # if higer-level n-gram gave results, apply alpha to lower-level findings
                 if(nrow(selected) > 0)
-                    found$Prob <- alpha * found$Prob 
+                    found$Prob <- alpha^(ngram.i-1) * found$Prob 
                 # bind new results with results from higher n-grams
                 l <- list(selected, found)
                 selected <- rbindlist(l)
@@ -83,7 +83,7 @@ predictTM <- function(model, phrase, n = 1, method = "SBO", alpha = 0.4, lambda 
         for(i in 1:nrow(predicted.Words)) {
             # run recursion over all n-gram models for each word
             probs <- getIProb(predicted.Words[i]$Word, ngrams)
-            predicted.Words[i]$Prob <- sum(probs * lambda)
+            predicted.Words[i]$Prob <- sum(probs * lambda[1:ngrams])
         }
         # data table with results
         predicted.Words <- predicted.Words[order(-Prob)]
