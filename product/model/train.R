@@ -76,7 +76,10 @@ cleandt <- function(dt, delete = NULL, trimFeatures = FALSE, threshold = 1) {
         cat("Trimming features at threshold...", threshold, "\n")        
         dt <- dt[Freq > threshold]
     }
-
+    
+    # remove redundant columns - only Prob is needed after trimming
+    dt[, Freq := NULL]
+    
     # EXPERIMENTAL: Remove starts and ends from tables and other tags:
     # once smoothing is done, tags are not needed for prediction any more
     cat("Removing tags...\n")        
@@ -152,9 +155,6 @@ trainTM <- function(t = NULL,
             dt <- smooth.n(dts[[i]], ngram.i = i, k = 0)
         }
         
-        # remove redundant columns - only Prob is needed
-        #dt[, Freq := NULL]
-
         # remove unwanted tags and bad words using wierd formula
         threshold <- as.integer(minCount^(1/i) + 0.5/i)
         dt <- cleandt(dt, delete, trimFeatures, threshold)        
