@@ -3,16 +3,19 @@ library(wordcloud)
 source(file.path("model", "utils.R"))
 source(file.path("model", "predict.R"))
 
-shinyServer(function(input, output, session) {
-    # read prediction model upon startup
-    fit <- readRDS("data/model.rds")
+# read prediction model upon startup
+fit <- readRDS("data/model.rds")
 
+shinyServer(function(input, output, session) {
     output$ui <- renderUI({
         # Depending on prediction algorithm chosen, we'll generate a different
         # UI component and send it to the client.
         switch(input$pmethod,
-               "SBO" = wellPanel(sliderInput("alpha", "Backoff alpha:",
-                                      min = 0.05, max = 1, value = 0.4)),
+               "SBO" = wellPanel(h4("Backoff coefficient:"),
+                                 sliderInput("alpha", "Alpha",
+                                      min = 0.05, max = 1, value = 0.4),
+                                 h5("Changing alpha coefficient does not guarantee any changes in prediction output for particular sentence."),
+                                 h5(textOutput("alpha"), style = "color:black")),
                "I" = wellPanel(h4("Predefined interpolation coefficients:"), 
                                h5(textOutput("lambda"), style = "color:black"))
         )
@@ -41,6 +44,7 @@ shinyServer(function(input, output, session) {
                       method = input$pmethod, 
                       alpha = input$alpha,
                       l = c(0.1, 0.15, 0.3, 0.45))
+        
     })
 
     output$lambda <- renderText({
@@ -48,7 +52,10 @@ shinyServer(function(input, output, session) {
         paste0("Lambda = (", lambda[1], ", ", lambda[2], ", ", lambda[3], ", ", lambda[4], ")")
     })
         
-                
+    output$alpha <- renderText({
+        paste("Alpha =", input$alpha)
+    })
+    
     output$words <- renderText({
         prediction <- getPrediction()
         words <- prediction$Word
