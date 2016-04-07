@@ -1,7 +1,7 @@
 makeTestList <- function(testset, maxdocs, ngrams = 4) {
     ndocs <- min(length(testset), maxdocs)
     
-    tags <- "ss-ss|ee-ee|ww-ww|tm-tm|mm-mm|oo-oo|us-us|ie-ie|eg-eg|ad-ad|dr-dr|mr-mr|mrs-mrs|dc-dc|nn-nn|ys-ys"
+    tags <- "ss-ss|ee-ee|ww-ww|tm-tm|mm-mm|oo-oo|us-us|ie-ie|eg-eg|ad-ad|dr-dr|mr-mr|mrs-mrs|dc-dc|nn-nn|ys-ys|nx-nx|sx-sx"
     testset <- gsub(tags, " ", testset)
     
     # collapse spaces in one space
@@ -15,11 +15,12 @@ makeTestList <- function(testset, maxdocs, ngrams = 4) {
 }
 
 testTM <- function(model, testlist, maxitems, n = 1, method = "none", alpha = 1, l = c(0.1, 0.15, 0.3, 0.45)) {
-    testpairs <- sapply(testlist, function(x) { if(length(x$key) > 0) x$key })
+    testpairs <- sapply(testlist, function(x) x$key)
     testpairs <- as.character(unlist(testpairs))
     nitems <- min(length(testpairs), maxitems)
-    
+
     testpairs <- testpairs[1:nitems]
+
     testwords <- sapply(testlist, function(x) x$word)
     testwords <- as.character(unlist(testwords))
     testwords <- testwords[1:nitems]
@@ -36,12 +37,11 @@ testTM <- function(model, testlist, maxitems, n = 1, method = "none", alpha = 1,
                                as.character(p$Word)
                            })
         
-    predicted <- t(as.matrix(predicted, n))
-    predicted[is.na(predicted)] <- "<unk>"
+    predicted <- matrix(as.character(predicted), nrow = nitems, ncol = n, byrow = TRUE)
 
     rownames(testpairs) <- NULL
     rownames(testwords) <- NULL
-    rownames(predicted) <- NULL
+#    rownames(predicted) <- NULL
     
     equal <- logical(nitems)
     for (i in 1:n) {

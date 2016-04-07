@@ -69,11 +69,18 @@ smooth.n.gt <- function(dt, ngram.i = 1, k = 1, V = 1) {
 }
 
 #############
-cleandt <- function(dt, delete = NULL) {
+cleandt <- function(dt, delete = NULL, trimFeatures = FALSE, threshold = 1) {
+    
+    # get rid of rare features:
+    if(trimFeatures) {
+        cat("Trimming features at threshold...", threshold, "\n")        
+        dt <- dt[Freq > threshold]
+    }
+
     # EXPERIMENTAL: Remove starts and ends from tables and other tags:
     # once smoothing is done, tags are not needed for prediction any more
     cat("Removing tags...\n")        
-    tags <- "ss-ss|ee-ee|ww-ww|tm-tm|mm-mm|oo-oo|us-us|ie-ie|eg-eg|ad-ad|dr-dr|mr-mr|mrs-mrs|dc-dc|nn-nn|ys-ys"
+    tags <- "ss-ss|ee-ee|ww-ww|tm-tm|mm-mm|oo-oo|us-us|ie-ie|eg-eg|ad-ad|dr-dr|mr-mr|mrs-mrs|dc-dc|nn-nn|ys-ys|nx-nx|sx-sx"
     tagskey <- grep(tags, dt$Key)
     tagsword <- grep(tags, dt$Word)
     remove <- union(tagskey, tagsword)
@@ -145,16 +152,12 @@ trainTM <- function(t = NULL,
             dt <- smooth.n(dts[[i]], ngram.i = i, k = 0)
         }
         
-        # get rid of rare features:
-        if(trimFeatures){
-            cat("Trim features...\n")        
-            dt <- dt[Freq > minCount]
-        }
         # remove redundant columns - only Prob is needed
-        dt[, Freq := NULL]
+        #dt[, Freq := NULL]
 
-        # remove unwanted tags and bad words
-        dt <- cleandt(dt, delete)        
+        # remove unwanted tags and bad words using wierd formula
+        threshold <- as.integer(minCount^(1/i) + 0.5/i)
+        dt <- cleandt(dt, delete, trimFeatures, threshold)        
         
         # I have no idea when it resets the key - have to be on the safe side
         setkey(dt, Key, Word)

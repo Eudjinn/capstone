@@ -11,7 +11,7 @@ no_cores <- max(1, detectCores() - 1)
 options(mc.cores = no_cores)
 #options(datatable.verbose=TRUE)
 # number of rows from original docs to use
-sample.percent <- 0.05
+sample.percent <- 0.1
 # proportion of training set
 train.percent <- 0.9
 
@@ -59,7 +59,7 @@ test <- cleansample[-inTrain]
 
 fit<- trainTM(t = train, 
               trimFeatures = TRUE, 
-              minCount = 2, 
+              minCount = 5, 
               minDoc = 3, 
               smoothingType = "GT", 
               smoothK = 5,

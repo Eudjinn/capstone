@@ -173,7 +173,7 @@ cleandoc <- function(doc, type = "string") {
     doc <- gsub("[0-9]+[\\.,]?[0-9]+%", " pp-pp ", doc)
     # replace some year's
     if(type == "document")
-        cat("Replacing recognized years with tag...\n")
+        cat("Replacing recognized years...\n")
     doc <- gsub("[0-9]+'?s", " ys-ys ", doc)
     
     if(type == "document")
@@ -187,6 +187,11 @@ cleandoc <- function(doc, type = "string") {
     doc <- gsub(" mrs\\. ", " mrs-mrs ", doc)
     doc <- gsub(" d\\.c\\.", " dc-dc", doc)
     
+    # remove all strange words adjacent to numbers except the ones from above
+    if(type == "document")
+        cat("Replacing groups of words with adjacent numbers...\n")
+    doc <- gsub("([0-9]+[a-z]+[0-9]+)|([a-z]+[0-9]+[a-z]+)|([0-9]+[a-z]+)|([a-z]+[0-9]+)", " nx-nx ", doc)
+
     # remove all groups with numbers
     if(type == "document")
         cat("Replacing groups of unrecognized numbers...\n")
@@ -196,12 +201,13 @@ cleandoc <- function(doc, type = "string") {
 
     if(type == "document")
         cat("Removing and fixing some other characters...\n")
+    doc <- gsub(" [a-z]'s ", " sx-sx ", doc)
     # remove multiple dashes
     doc <- gsub("-{2,}", "", doc)
-    # remove standalone dashes
-    doc <- gsub(" - ", " ", doc)
-    doc <- gsub(" -", " ", doc)
-    doc <- gsub("- ", " ", doc)
+    # remove standalone dashes, quotes and other stuff
+    doc <- gsub(" [-'] ", " ", doc)
+    doc <- gsub(" [-']", " ", doc)
+    doc <- gsub("[-'] ", " ", doc)
     # remove hash
     doc <- gsub("#", "", doc)
     # remove star
