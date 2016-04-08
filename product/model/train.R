@@ -82,18 +82,17 @@ cleandt <- function(dt, delete = NULL, trimFeatures = FALSE, threshold = 1) {
     
     # EXPERIMENTAL: Remove starts and ends from tables and other tags:
     # once smoothing is done, tags are not needed for prediction any more
-    cat("Removing tags...\n")        
     tags <- "ss-ss|ee-ee|ww-ww|tm-tm|mm-mm|oo-oo|us-us|ie-ie|eg-eg|ad-ad|dr-dr|mr-mr|mrs-mrs|dc-dc|nn-nn|ys-ys|nx-nx|sx-sx"
-#    tagskey <- grep(tags, dt$Key)
+    tagskey <- grep(tags, dt$Key)
     tagsword <- grep(tags, dt$Word)
-#    remove <- union(tagskey, tagsword)
-    remove <- tagsword
+    remove <- union(tagskey, tagsword)
+    cat("Removing tags...", length(remove), "\n")
     if(length(remove) > 0)
         dt <- dt[-remove]
     
     # remove bad words
     if(!is.null(delete)) {
-        cat("Removing words from deletion list...\n")        
+        cat("Removing words from deletion list...", length(delete), "\n")        
         setkey(dt, Key)
         dt <- dt[!delete]
         setkey(dt, Word)
@@ -131,8 +130,8 @@ trainTM <- function(t = NULL,
         cat("Creating data tables...\n")        
         dt <- data.table(Key = getFirstNWords(features(dtm), i - 1), 
                          Word = getLastNWords(features(dtm), 1),
-#                         Freq = docfreq(dtm, scheme = "count"))
-                         Freq = colSums(dtm))
+                         Freq = docfreq(dtm, scheme = "count"))
+#                         Freq = colSums(dtm))
 
  #       unk <- data.table(Key = "uu-nn-kk", # unknown word with frequency 1 after trimming
  #                         Word = "uu-nn-kk",

@@ -1,10 +1,5 @@
-library(shiny)
-library(wordcloud)
 source(file.path("model", "utils.R"))
 source(file.path("model", "predict.R"))
-
-# read prediction model upon startup
-fit <- readRDS("data/model.rds")
 
 shinyServer(function(input, output, session) {
     output$ui <- renderUI({
@@ -36,14 +31,15 @@ shinyServer(function(input, output, session) {
 #    })
     
     getPrediction <- reactive({
-#        if (input$predict == 0)
-#            return()
+        if(loaded == TRUE)
             predictTM(model = fit, 
                       phrase = input$phrase, 
                       n = input$numwords, 
                       method = input$pmethod, 
                       alpha = input$alpha,
                       l = c(0.1, 0.15, 0.3, 0.45))
+        else
+            return("")
         
     })
 

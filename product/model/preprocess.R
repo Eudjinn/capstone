@@ -26,14 +26,15 @@ getSample <- function(text, sample.p = 0.01) {
 }
 
 ## cleaning
-cleanData <- function(textdata) {
+cleanData <- function(textdata, ngrams) {
     cat("Cleaning...\n")
     textdata <- cleandoc(textdata, type = "document")
     cat("Removing stopwords to find short meaningless strings that can be deleted...\n")
     nostopwords <- rm_stopwords(textdata, separate = FALSE)
     # identify docs which are noisy and are not good for word prediction
+    cat("Counting words in each element of documents vector...\n")
     wordscount <- stri_count_words(nostopwords)
     # remove docs with less than 3 meaningful words (without stopwords)
-    textdata <- textdata[wordscount > 3]
+    textdata <- textdata[wordscount > ngrams]
     textdata
 }

@@ -1,7 +1,6 @@
 library(shiny)
 
 shinyUI(fluidPage(theme = "bootstrap.css",
-    
     fluidRow(column(12,
         h2("Word prediction application", align = "center"),
         fluidRow(

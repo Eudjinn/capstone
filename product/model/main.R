@@ -12,7 +12,7 @@ no_cores <- max(1, detectCores() - 1)
 options(mc.cores = no_cores)
 #options(datatable.verbose=TRUE)
 # number of rows from original docs to use
-sample.percent <- 1
+sample.percent <- 0.1
 # proportion of training set
 train.percent <- 0.95
 
@@ -29,7 +29,7 @@ source(file.path("product","model","quiz2.R"))
 
 model.path <- file.path("product", "data", "model.rds")
 cleansample.path <- file.path("cache", "cleansample.txt")
-badwords.path <- file.path("product","data","remove.txt")
+badwords.path <- file.path("data","remove.txt")
 
 ############################################
 
@@ -40,9 +40,10 @@ if(!file.exists(cleansample.path)) {
     
     # cleaning does not remove all punctuation.
     # some of it is used to add tokens.
-    cleansample <- cleanData(sampletexts)
+    cleansample <- cleanData(sampletexts, ngrams)
     writeLines(cleansample, cleansample.path)
 } else {
+    cat("Reading cleaned sample from cache...\n")
     cleansample <- readLines(cleansample.path, encoding = "UTF-8", skipNul = TRUE)
 }
 
