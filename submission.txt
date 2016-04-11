@@ -1,0 +1,2 @@
+Slides: http://rpubs.com/Eudjinn/prediction
+Shiny App: https://eudjinn.shinyapps.io/product/
