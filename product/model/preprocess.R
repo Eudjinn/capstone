@@ -34,7 +34,7 @@ cleanData <- function(textdata, ngrams) {
     # identify docs which are noisy and are not good for word prediction
     cat("Counting words in each element of documents vector...\n")
     wordscount <- stri_count_words(nostopwords)
-    # remove docs with less than 3 meaningful words (without stopwords)
+    # remove docs with less than ngrams meaningful words (without stopwords)
     textdata <- textdata[wordscount > ngrams]
     textdata
 }

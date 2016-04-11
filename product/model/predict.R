@@ -47,7 +47,7 @@ predictTM <- function(model, phrase, n = 1, method = "SBO", alpha = 0.4, lambda 
             if(nrow(found) > 0) { # do something only if found something
                 # if higer-level n-gram gave results, apply alpha to lower-level findings
                 if(nrow(selected) > 0)
-                    found$Prob <- alpha^(ngram.i-1) * found$Prob 
+                    found$Prob <- alpha * found$Prob 
                 # bind new results with results from higher n-grams
                 l <- list(selected, found)
                 selected <- rbindlist(l)
