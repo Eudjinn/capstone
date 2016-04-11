@@ -30,18 +30,6 @@ A model with 4-grams, 3-grams, bigrams and unigrams was built.
 - Interpolation (linear combination of n-grams using coefficients)
 
 
-Tools and packages
-========================================================
-For development of the text model the following tools and packages were used:
-- RStudio/R
-- quanteda package (building document term matixes)
-- data.table package (main storage for the n-gram model)
-- stringi package (for some operations with strings)
-
-Tried to use but droped during development:
-- tm package (tokenizing is extremely slow)
-- parallel package (encountered issues with parallel processing, perhaps due to other packages incompatibility)  
-
 The Shiny Word Prediction Application
 ========================================================
 The application allows one to choose the prediction method (Stupid Backoff/Interpolation). Both methods give the same predictions most of the time but Interpolation is computationally more expensive. 
